@@ -1,0 +1,45 @@
+{
+    "interfaces": [
+        {
+            "name": "hotspot",
+            "type": "bridge",
+            "bridge_members": [],
+            "disabled": false
+        },
+        {
+            "name": "wifi_hotspot24",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio0",
+                "mode": "access_point",
+                "ssid": "NINUX Free WiFi",
+                "isolate": true,
+                "network": ["hotspot"]
+            }
+        }
+    ],
+    "chilli": [
+        {
+            "config_name": "chilli",
+            "config_value": "hotspot",
+            "disabled": "0",
+            "dhcpif": "br-hotspot",
+            "net": "192.168.182.0/24",
+            "uamlisten": "192.168.182.1",
+            "uamport": "3990",
+            "uamserver": "https://wifi.ninux-nnxx.it/default",
+            "uamallowed": "wifi.ninux-nnxx.it",
+            "uamanydns": "1",
+            "dns1": "1.1.1.1",
+            "dns2": "8.8.8.8",
+            "lease": "600",
+            "interval": "3600",
+            "swapoctets": "1",
+            "radiusserver1": "10.27.22.18",
+            "radiusserver2": "10.27.22.18",
+            "radiussecret": "{{ radius_secret }}",
+            "radiusnasid": "{{ name }}"
+        }
+    ]
+}

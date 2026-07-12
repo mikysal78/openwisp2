@@ -1,0 +1,39 @@
+#!/bin/sh
+# Gestito da OpenWISP: eseguito da openwisp-config dopo ogni applicazione
+# della configurazione (/etc/openwisp/post-reload-hook).
+# Installa bird2 se manca, valida /etc/bird.conf e ricarica il demone.
+
+[ -f /etc/bird.conf ] || exit 0
+
+if [ ! -x /etc/init.d/bird ]; then
+    logger -t openwisp-bird "bird2 non installato, provo a installarlo"
+    if command -v apk >/dev/null 2>&1; then
+        apk update >/dev/null 2>&1 && apk add bird2 >/dev/null 2>&1
+    elif command -v opkg >/dev/null 2>&1; then
+        opkg update >/dev/null 2>&1 && opkg install bird2 >/dev/null 2>&1
+    fi
+fi
+
+if [ ! -x /etc/init.d/bird ]; then
+    logger -t openwisp-bird "bird2 assente e non installabile (router senza uplink?): salto"
+    exit 0
+fi
+
+# Non ricaricare mai con una configurazione non valida: bird resterebbe giu'
+# e il router si taglierebbe fuori dalla rete.
+if ! bird -p -c /etc/bird.conf >/dev/null 2>&1; then
+    logger -t openwisp-bird "/etc/bird.conf NON valida, bird non ricaricato"
+    exit 0
+fi
+
+/etc/init.d/bird enable >/dev/null 2>&1
+
+if pgrep -f '/usr/sbin/bird' >/dev/null 2>&1; then
+    /etc/init.d/bird reload >/dev/null 2>&1 || /etc/init.d/bird restart >/dev/null 2>&1
+    logger -t openwisp-bird "bird ricaricato"
+else
+    /etc/init.d/bird start >/dev/null 2>&1
+    logger -t openwisp-bird "bird avviato"
+fi
+
+exit 0

@@ -1,0 +1,50 @@
+{
+    "interfaces": [
+        {
+            "name": "mesh0",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio0",
+                "mode": "802.11s",
+                "mesh_id": "ninux-mesh",
+                "network": [
+                    "mesh"
+                ],
+                "mesh_fwding": false,
+                "encryption": {
+                    "protocol": "none",
+                    "disabled": true
+                }
+            }
+        },
+        {
+            "name": "mesh",
+            "type": "bridge",
+            "bridge_members": [
+                "mesh0"
+            ],
+            "disabled": false,
+            "addresses": [
+                {
+                    "proto": "static",
+                    "family": "ipv4",
+                    "address": "{{ mesh_subnet1_ip1 }}",
+                    "mask": 24
+                }
+            ]
+        }
+    ],
+    "radios": [
+        {
+            "name": "radio0",
+            "phy": "phy0",
+            "driver": "mac80211",
+            "protocol": "802.11n",
+            "channel": 1,
+            "channel_width": 20,
+            "country": "IT",
+            "disabled": false
+        }
+    ]
+}

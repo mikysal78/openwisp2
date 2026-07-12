@@ -1,0 +1,81 @@
+# {{ ansible_managed }}
+# bird2 lato server OpenWISP — allineato alla config Babel dei router NINUX:
+# - annuncia via Babel le rotte direct (subnet WireGuard) e quelle Babel
+# - non annuncia e non importa mai la default route
+# Configure logging
+log syslog all;
+log "/var/log/bird.log" all;
+log stderr all;
+router id from "{{ bird_wan_interface }}";
+
+# Sync bird routing table with kernel
+protocol kernel kernel4 {
+    description "Kernel protocol for IPv4";
+    scan time 20;
+    learn yes;
+    metric 50;
+    merge paths yes;
+    ipv4 {
+        table master4;
+        export filter {
+            # le rotte direct della VPN sono gia' connesse nel kernel
+            if (proto = "vpn") then reject;
+            accept;
+        };
+        import filter {
+            # il server ha gia' la sua default via {{ bird_wan_interface }}:
+            # non serve importare nulla dal kernel
+            reject;
+        };
+    };
+};
+
+protocol kernel kernel6 {
+    description "Kernel protocol for IPv6";
+    scan time 20;
+    learn yes;
+    metric 300;
+    merge paths yes;
+    ipv6 {
+        table master6;
+        export filter {
+            if (proto = "vpn") then reject;
+            accept;
+        };
+        import filter {
+            reject;
+        };
+    };
+};
+
+protocol device {
+    description "Device protocol";
+    scan time 10;
+};
+
+# Annuncia la subnet della VPN WireGuard ({{ firewall_wg_subnet_v4 | default('10.27.250.0/24') }})
+protocol direct vpn {
+    description "Direct routes VPN WireGuard";
+    ipv4;
+    ipv6;
+    interface "{{ bird_wg_interface }}";
+    check link no;
+}
+
+protocol babel ninux {
+    description "Babel protocol for NINUX network";
+    ipv4 {
+        export where (source = RTS_DEVICE) || (source = RTS_BABEL) || (net != 0.0.0.0/0);
+        import where (net != 0.0.0.0/0);
+    };
+    ipv6 {
+        export where (source = RTS_DEVICE) || (source = RTS_BABEL) || (net != ::/0);
+        import where (net != ::/0);
+    };
+{% for iface in bird_babel_interfaces %}
+    interface "{{ iface }}" {
+        check link yes;
+        rxcost 600;
+    };
+{% endfor %}
+}

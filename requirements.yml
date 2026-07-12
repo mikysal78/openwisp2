@@ -1,0 +1,22 @@
+---
+# Ruoli installati direttamente da GitHub (versioni più aggiornate di Galaxy)
+# Installali dentro il repo con:
+#   ansible-galaxy role install -r requirements.yml -p roles/
+#   ansible-galaxy collection install -r requirements.yml -p collections/
+roles:
+  - name: openwisp.openwisp2
+    src: https://github.com/openwisp/ansible-openwisp2.git
+    version: "25.10.2"
+
+  - name: openwisp.wireguard_openwisp
+    src: https://github.com/openwisp/ansible-wireguard-openwisp.git
+    version: "1.3.1"
+
+  - name: openwisp.wifi_login_pages
+    src: https://github.com/openwisp/ansible-openwisp-wifi-login-pages.git
+    version: "1.3.2"
+
+collections:
+  - name: community.general
+    version: ">=3.6.0"
+  - name: ansible.posix

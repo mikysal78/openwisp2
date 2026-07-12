@@ -1,0 +1,176 @@
+{
+    "interfaces": [
+        {
+            "name": "captive",
+            "type": "bridge",
+            "bridge_members": [],
+            "disabled": false,
+            "addresses": [
+                {
+                    "address": "192.168.182.1",
+                    "mask": 24,
+                    "proto": "static",
+                    "family": "ipv4"
+                }
+            ]
+        },
+        {
+            "name": "wifi_hotspot24",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio0",
+                "mode": "access_point",
+                "ssid": "NINUX Free WiFi",
+                "isolate": true,
+                "network": ["captive"]
+            }
+        }
+    ],
+    "uspot": [
+        {
+            "config_name": "uspot",
+            "config_value": "captive",
+            "auth_mode": "uam",
+            "interface": "captive",
+            "setname": "uspot",
+            "auth_server": "10.27.22.18",
+            "auth_port": "1812",
+            "auth_secret": "{{ radius_secret }}",
+            "acct_server": "10.27.22.18",
+            "acct_port": "1813",
+            "acct_secret": "{{ radius_secret }}",
+            "counters": "1",
+            "uam_port": "3990",
+            "uam_server": "https://wifi.ninux-nnxx.it/default/",
+            "nasid": "{{ name }}",
+            "nasmac": "{{ mac_address }}",
+            "idle_timeout": "600"
+        }
+    ],
+    "uhttpd": [
+        {
+            "config_name": "uhttpd",
+            "config_value": "uspot",
+            "listen_http": ["192.168.182.1:80"],
+            "redirect_https": "0",
+            "max_requests": "5",
+            "no_dirlists": "1",
+            "home": "/www-uspot",
+            "ucode_prefix": [
+                "/hotspot=/usr/share/uspot/handler.uc",
+                "/cpd=/usr/share/uspot/handler-cpd.uc"
+            ],
+            "error_page": "/cpd"
+        },
+        {
+            "config_name": "uhttpd",
+            "config_value": "uam3990",
+            "listen_http": ["192.168.182.1:3990"],
+            "redirect_https": "0",
+            "max_requests": "5",
+            "no_dirlists": "1",
+            "home": "/www-uspot",
+            "ucode_prefix": [
+                "/logon=/usr/share/uspot/handler-uam.uc",
+                "/logoff=/usr/share/uspot/handler-uam.uc",
+                "/logout=/usr/share/uspot/handler-uam.uc"
+            ]
+        }
+    ],
+    "dhcp": [
+        {
+            "config_name": "dhcp",
+            "config_value": "captive",
+            "interface": "captive",
+            "start": "2",
+            "limit": "250",
+            "leasetime": "2h"
+        },
+        {
+            "config_name": "ipset",
+            "name": ["wlist"],
+            "domain": ["wifi.ninux-nnxx.it"]
+        }
+    ],
+    "firewall": [
+        {
+            "config_name": "zone",
+            "config_value": "captive",
+            "name": "captive",
+            "network": ["captive"],
+            "input": "REJECT",
+            "output": "ACCEPT",
+            "forward": "REJECT"
+        },
+        {
+            "config_name": "redirect",
+            "name": "Redirect-unauth-captive-CPD",
+            "src": "captive",
+            "src_dport": "80",
+            "proto": "tcp",
+            "target": "DNAT",
+            "reflection": "0",
+            "ipset": "!uspot"
+        },
+        {
+            "config_name": "rule",
+            "name": "Allow-DHCP-NTP-captive",
+            "src": "captive",
+            "proto": "udp",
+            "dest_port": "67 123",
+            "target": "ACCEPT"
+        },
+        {
+            "config_name": "rule",
+            "name": "Restrict-input-captive",
+            "src": "captive",
+            "dest_ip": "!captive",
+            "target": "DROP"
+        },
+        {
+            "config_name": "rule",
+            "name": "Allow-captive-CPD-WEB-UAM",
+            "src": "captive",
+            "dest_port": "80 443 3990",
+            "proto": "tcp",
+            "target": "ACCEPT"
+        },
+        {
+            "config_name": "rule",
+            "name": "Allow-DNS-captive",
+            "src": "captive",
+            "proto": ["udp", "tcp"],
+            "dest_port": "53",
+            "target": "ACCEPT"
+        },
+        {
+            "config_name": "rule",
+            "name": "Forward-auth-captive",
+            "src": "captive",
+            "dest": "wan",
+            "proto": "any",
+            "target": "ACCEPT",
+            "ipset": "uspot"
+        },
+        {
+            "config_name": "rule",
+            "name": "Allow-Whitelist",
+            "src": "captive",
+            "dest": "wan",
+            "proto": "any",
+            "ipset": "wlist",
+            "target": "ACCEPT"
+        },
+        {
+            "config_name": "ipset",
+            "name": "uspot",
+            "match": ["src_mac"]
+        },
+        {
+            "config_name": "ipset",
+            "name": "wlist",
+            "match": ["dest_ip"]
+        }
+    ]
+}

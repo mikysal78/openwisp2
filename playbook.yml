@@ -1,0 +1,355 @@
+---
+# ============================================================================
+# Play 1 — OpenWISP2 "full" (tutti i moduli) + WiFi Login Pages
+# ============================================================================
+- name: Installa OpenWISP2 full e WiFi Login Pages
+  hosts: openwisp2
+  become: "{{ become | default('yes') }}"
+  vars_files:
+    - secrets.yml
+  pre_tasks:
+    # Il ruolo wifi_login_pages clona/aggiorna il repo come root, ma i file
+    # appartengono a www-data: senza safe.directory git rifiuta di operare
+    # ("dubious ownership").
+    - name: Git safe.directory per il repo wifi-login-pages
+      ansible.builtin.shell: |
+        git config --global --get-all safe.directory 2>/dev/null | grep -qx '/opt/openwisp2/wifi-login-pages' \
+          || git config --global --add safe.directory /opt/openwisp2/wifi-login-pages
+      changed_when: false
+
+    # I dati del monitoring (InfluxDB) crescono nel tempo: li spostiamo sul
+    # secondo disco (20G montato su /opt) con un bind mount, visto che il
+    # ruolo non permette di cambiare la data dir.
+    - name: Verifica se /var/lib/influxdb è già un bind mount
+      ansible.builtin.command: findmnt /var/lib/influxdb
+      register: influxdb_mount
+      failed_when: false
+      changed_when: false
+      tags: [storage]
+
+    - name: Sposta i dati InfluxDB su /opt (secondo disco)
+      when: influxdb_mount.rc != 0
+      tags: [storage]
+      block:
+        - name: Ferma influxdb se già installato
+          ansible.builtin.systemd:
+            name: influxdb
+            state: stopped
+          failed_when: false
+
+        - name: Crea /opt/influxdb
+          ansible.builtin.file:
+            path: /opt/influxdb
+            state: directory
+
+        - name: Migra eventuali dati esistenti
+          ansible.builtin.shell: |
+            if [ -d /var/lib/influxdb ] && [ -n "$(ls -A /var/lib/influxdb 2>/dev/null)" ]; then
+              cp -a /var/lib/influxdb/. /opt/influxdb/
+            fi
+          changed_when: false
+
+        - name: Assicura la directory /var/lib/influxdb
+          ansible.builtin.file:
+            path: /var/lib/influxdb
+            state: directory
+
+        - name: Bind mount /opt/influxdb -> /var/lib/influxdb (persistente in fstab)
+          ansible.posix.mount:
+            path: /var/lib/influxdb
+            src: /opt/influxdb
+            fstype: none
+            opts: bind
+            state: mounted
+
+        - name: Riavvia influxdb se installato
+          ansible.builtin.systemd:
+            name: influxdb
+            state: started
+          failed_when: false
+  roles:
+    - openwisp.openwisp2
+    - openwisp.wifi_login_pages
+  post_tasks:
+    # Il ruolo scrive solo NETJSONCONFIG_CONTEXT, ma openwisp-controller legge
+    # OPENWISP_CONTROLLER_CONTEXT: lo aggiungiamo in coda a settings.py.
+    # Serve come valore di ripiego per le variabili della regola di subnet
+    # division (il template mesh non validerebbe con la variabile non risolta);
+    # per ogni device la regola assegna l'IP vero e sovrascrive questo valore.
+    - name: Context globale per openwisp-controller
+      ansible.builtin.blockinfile:
+        path: "{{ openwisp2_path }}/openwisp2/settings.py"
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - controller context"
+        block: |
+          OPENWISP_CONTROLLER_CONTEXT = {{ openwisp2_context | to_nice_json }}
+      notify: restart openwisp2
+      tags: [context]
+
+    # OpenWISP crea gli IP in IPAM senza nome del device (bulk_create, nessun
+    # segnale): questo script fa il sync e lo eseguiamo periodicamente.
+    - name: Script di sync hostname -> IPAM
+      ansible.builtin.copy:
+        src: files/sync_ipam_hostnames.py
+        dest: "{{ openwisp2_path }}/sync_ipam_hostnames.py"
+        mode: "0644"
+      tags: [ipam]
+
+    - name: Cron per il sync hostname in IPAM (ogni 10 minuti)
+      ansible.builtin.cron:
+        name: "sync hostname IPAM"
+        minute: "*/10"
+        job: >-
+          {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/sync_ipam_hostnames.py > /dev/null 2>&1
+      tags: [ipam]
+
+  handlers:
+    - name: restart openwisp2
+      ansible.builtin.command: supervisorctl restart openwisp2 celery celerybeat
+      changed_when: true
+
+  vars:
+    # ------------------------------------------------------------------
+    # Email — NB: il dominio di OpenWISP è l'inventory_hostname nel file
+    # "hosts" (openwisp.ninux-nnxx.it): il ruolo lo usa per nginx e Django.
+    # ------------------------------------------------------------------
+    openwisp2_default_from_email: "openwisp@ninux-nnxx.it"
+    openwisp2_email_host: "localhost"
+
+    # ------------------------------------------------------------------
+    # Installazione "full": abilita tutti i moduli
+    # (controller e monitoring sono già inclusi di default)
+    # ------------------------------------------------------------------
+    openwisp2_network_topology: true
+    openwisp2_firmware_upgrader: true
+    openwisp2_radius: true          # necessario anche per le WiFi Login Pages
+    openwisp2_monitoring: true
+
+    # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
+    # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
+    openwisp2_extra_django_apps:
+      - "openwisp_controller.subnet_division"
+
+    # Context globale: valore di ripiego per le variabili generate dalla regola
+    # di subnet division "mesh". Serve solo a far validare il template quando la
+    # variabile non è ancora risolta; per ogni device la regola assegna l'IP vero
+    # e lo sovrascrive (il context della regola è applicato DOPO quello globale).
+    # NB: non va messo nei "default values" del template, altrimenti l'admin lo
+    # copierebbe nelle variabili del device, vincendo sull'assegnazione automatica.
+    openwisp2_context:
+      mesh_subnet1_ip1: "10.27.99.1"
+      mesh_prefixlen: "24"
+      # IP della vxlan1 sul router (link-local, stessa /16 delle vxlan-* del
+      # server, che NetworkManager configura con ipv4.method=link-local):
+      # serve a Babel per avere un next-hop IPv4 on-link sul tunnel.
+      vxlan_subnet1_ip1: "169.254.0.1"
+      # Interfaccia WAN usata da bird sui router (stub OSPF): sovrascrivibile
+      # per device dalle variabili di configurazione.
+      wan_interface: "eth1"
+      # Shared secret RADIUS degli hotspot: sta in secrets.yml, cosi' i template
+      # hotspot nel repo non contengono il segreto in chiaro.
+      radius_secret: "{{ vault_radius_secret }}"
+
+    # ------------------------------------------------------------------
+    # SSL — certificato gestito MANUALMENTE (già presente sul CT).
+    # I file esistono già, quindi il ruolo NON genera il self-signed
+    # e non li toccherà mai: li rinnovi tu in /etc/ssl/acme/.
+    # ------------------------------------------------------------------
+    openwisp2_path: "/opt/openwisp2"
+    openwisp2_ssl_cert: "/etc/ssl/acme/ninux-nnxx.it.fullchain.pem"
+    openwisp2_ssl_key: "/etc/ssl/acme/ninux-nnxx.it.key"
+    # Il dominio ha un record AAAA: senza questo, sulle connessioni IPv6
+    # risponderebbe il vhost delle wifi login pages ([::]:443) al posto di
+    # OpenWISP (che di default ascolta solo IPv4)
+    openwisp2_nginx_ipv6: true
+
+    # ------------------------------------------------------------------
+    # WiFi Login Pages (captive portal) — stesso certificato
+    # (deve coprire wifi.ninux-nnxx.it: wildcard o SAN)
+    # ------------------------------------------------------------------
+    wifi_login_pages_domains:
+      - "wifi.ninux-nnxx.it"
+    wifi_login_pages_ssl_cert: "{{ openwisp2_ssl_cert }}"
+    wifi_login_pages_ssl_key: "{{ openwisp2_ssl_key }}"
+    # Directory locale con i file di configurazione delle organizzazioni
+    wifi_login_pages_organizations_src: "owlp_organizations/"
+
+# ============================================================================
+# Play 2 — Server WireGuard gestito da OpenWISP
+#
+# Eseguilo SOLO DOPO aver creato l'oggetto VPN WireGuard nell'interfaccia
+# di OpenWISP (vedi README, passo 3), perché servono UUID e chiave della VPN:
+#
+#   ansible-playbook -i hosts playbook.yml --tags wireguard
+#
+# Alla prima esecuzione completa viene saltato automaticamente se UUID/key
+# sono ancora i placeholder.
+# ============================================================================
+- name: Installa il server WireGuard integrato con OpenWISP
+  hosts: wireguard
+  become: "{{ become | default('yes') }}"
+  tags: wireguard
+  vars:
+    # URL del controller OpenWISP (default: https://<inventory_hostname>)
+    openwisp2_wireguard_controller_url: "https://{{ inventory_hostname }}"
+
+    # Copiali dalla pagina dell'oggetto VPN in OpenWISP dopo averlo creato
+    # (la chiave sta in secrets.yml, non versionato)
+    openwisp2_wireguard_vpn_uuid: "c0f2c779-7979-4917-a4ba-89ca04156aa3"
+    openwisp2_wireguard_vpn_key: "{{ vault_wireguard_vpn_key }}"
+
+    # Token segreto per il webhook che OpenWISP chiama per aggiornare i peer
+    # (stesso valore del campo "Webhook AuthToken" dell'oggetto VPN nella UI)
+    openwisp2_wireguard_flask_key: "{{ vault_wireguard_flask_key }}"
+    openwisp2_wireguard_flask_port: 8081
+
+    # Riusa il certificato già presente sul CT
+    openwisp2_wireguard_ssl_cert: "/etc/ssl/acme/ninux-nnxx.it.fullchain.pem"
+    openwisp2_wireguard_ssl_key: "/etc/ssl/acme/ninux-nnxx.it.key"
+
+  tasks:
+    - name: Verifica che UUID e key della VPN siano stati impostati
+      ansible.builtin.meta: end_host
+      when: "'INSERISCI' in openwisp2_wireguard_vpn_uuid or 'INSERISCI' in openwisp2_wireguard_vpn_key"
+
+    - name: Applica il ruolo wireguard_openwisp
+      ansible.builtin.include_role:
+        name: openwisp.wireguard_openwisp
+
+# ============================================================================
+# Play 3 — Firewall (nftables) + forwarding/NAT per la VPN
+# ============================================================================
+- name: Configura firewall nftables
+  hosts: openwisp2
+  become: "{{ become | default('yes') }}"
+  tags: firewall
+  vars:
+    firewall_ssh_port: 2400
+    # SSH ammesso solo da queste sorgenti (rete di gestione/mesh).
+    # NB: si filtra per IP sorgente e non per interfaccia perché il traffico
+    # di gestione arriva anche instradato via Babel su eth1.
+    firewall_ssh_sources_v4:
+      - "10.27.0.0/16"
+    # eth0 = rete di gestione (10.27.22.18)
+    firewall_mgmt_interface: "eth0"
+    # eth1 = IP pubblico (194.28.98.61 / 2a07:7e81:3f1c::18)
+    firewall_wan_interface: "eth1"
+    firewall_wg_interface: "wg0"
+    firewall_wg_port: 51820
+    # Deve coincidere con la subnet creata in OpenWISP per la VPN WireGuard
+    firewall_wg_subnet_v4: "10.27.250.0/24"
+    firewall_webhook_port: 8081
+    # Il webhook lo chiama solo OpenWISP (stesso CT): loopback + propri IP
+    firewall_webhook_sources_v4:
+      - "127.0.0.1"
+      - "194.28.98.61"
+      - "10.27.22.18"
+    firewall_webhook_sources_v6:
+      - "::1"
+      - "2a07:7e81:3f1c::18"
+    # RADIUS raggiungibile solo da VPN e rete di gestione
+    firewall_radius_sources_v4:
+      - "10.27.250.0/24"
+      - "10.27.0.0/16"
+    # Interfacce su cui è ammesso Babel (deve combaciare con il play bird):
+    # le vxlan* (L2 sopra WireGuard, dove girano i vicini Babel) + eth1
+    firewall_babel_interfaces:
+      - "vxlan*"
+      - "eth1"
+
+  tasks:
+    - name: Installa nftables
+      ansible.builtin.apt:
+        name: nftables
+        state: present
+        update_cache: true
+
+    - name: Abilita forwarding IPv4 e IPv6 (gateway per i peer WireGuard)
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1"
+        sysctl_file: /etc/sysctl.d/90-openwisp-forwarding.conf
+        reload: true
+      loop:
+        - net.ipv4.ip_forward
+        - net.ipv6.conf.all.forwarding
+
+    - name: Applica la configurazione nftables
+      ansible.builtin.template:
+        src: templates/nftables.conf.j2
+        dest: /etc/nftables.conf
+        mode: "0644"
+        validate: "nft -c -f %s"
+      notify: reload nftables
+
+    - name: Abilita e avvia nftables
+      ansible.builtin.systemd:
+        name: nftables
+        enabled: true
+        state: started
+
+  handlers:
+    - name: reload nftables
+      ansible.builtin.systemd:
+        name: nftables
+        state: restarted
+
+# ============================================================================
+# Play 4 — bird2 (Babel per la rete NINUX)
+# La VPN partecipa al routing Babel tramite l'interfaccia WireGuard (wg0),
+# che sostituisce la vecchia interfaccia ZeroTier.
+# ============================================================================
+- name: Installa e configura bird2 (Babel)
+  hosts: openwisp2
+  become: "{{ become | default('yes') }}"
+  tags: bird
+  vars:
+    # Interfaccia da cui ricavare il router id: eth1 (IP pubblico)
+    bird_wan_interface: "eth1"
+    # Interfaccia WireGuard: la sua subnet viene annunciata via Babel (direct)
+    bird_wg_interface: "wg0"
+    # Interfacce su cui parla Babel: le VXLAN sopra il tunnel WireGuard
+    # (equivalenti L2 della vecchia ZeroTier) + eth1
+    # (togli eth1 se su quella tratta non ci sono vicini Babel)
+    bird_babel_interfaces:
+      - "vxlan*"
+      - "eth1"
+
+  tasks:
+    - name: Installa bird2
+      ansible.builtin.apt:
+        name: bird2
+        state: present
+        update_cache: true
+
+    - name: Crea il file di log di bird
+      ansible.builtin.file:
+        path: /var/log/bird.log
+        state: touch
+        owner: bird
+        group: bird
+        mode: "0640"
+        modification_time: preserve
+        access_time: preserve
+
+    - name: Applica la configurazione di bird
+      ansible.builtin.template:
+        src: templates/bird.conf.j2
+        dest: /etc/bird/bird.conf
+        owner: bird
+        group: bird
+        mode: "0640"
+        validate: "bird -p -c %s"
+      notify: restart bird
+
+    - name: Abilita e avvia bird
+      ansible.builtin.systemd:
+        name: bird
+        enabled: true
+        state: started
+
+  handlers:
+    - name: restart bird
+      ansible.builtin.systemd:
+        name: bird
+        state: restarted
