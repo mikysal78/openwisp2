@@ -1,0 +1,16 @@
+# Segreti reali (usare secrets.example.yml come modello)
+secrets.yml
+
+# Dipendenze Ansible: rigenerabili con
+#   ansible-galaxy role install -r requirements.yml -p roles/
+#   ansible-galaxy collection install -r requirements.yml -p collections/
+roles/
+collections/
+
+# Runtime Ansible
+*.retry
+.ansible/
+
+# Python
+__pycache__/
+*.pyc
