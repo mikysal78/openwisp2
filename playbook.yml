@@ -103,6 +103,108 @@
           < {{ openwisp2_path }}/sync_ipam_hostnames.py > /dev/null 2>&1
       tags: [ipam]
 
+    # Al boot supervisor (uwsgi/celery) parte in parallelo a InfluxDB, che
+    # impiega una decina di secondi ad aprire gli shard. openwisp-monitoring
+    # chiama create_database() dentro AppConfig.ready(): se InfluxDB non
+    # risponde ancora, l'app Django non si carica e uwsgi resta su a rispondere
+    # 500 a ogni richiesta, per sempre, finché non lo si riavvia a mano.
+    # influxdb.service è Type=forking e il suo script di avvio esce solo quando
+    # l'API HTTP risponde, quindi After= basta a garantire l'ordine.
+    - name: Directory per il drop-in di supervisor
+      ansible.builtin.file:
+        path: /etc/systemd/system/supervisor.service.d
+        state: directory
+        mode: "0755"
+      tags: [systemd]
+
+    - name: Ordine di avvio - supervisor dopo InfluxDB e Redis
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/supervisor.service.d/10-openwisp-deps.conf
+        mode: "0644"
+        content: |
+          # ANSIBLE MANAGED - vedi playbook.yml
+          [Unit]
+          Wants=influxdb.service redis-server.service
+          After=influxdb.service redis-server.service
+      register: supervisor_dropin
+      tags: [systemd]
+
+    - name: Ricarica systemd dopo il drop-in
+      ansible.builtin.systemd:
+        daemon_reload: true
+      when: supervisor_dropin.changed
+      tags: [systemd]
+
+    # NB (storico, risolto lato Proxmox): eth0 ed eth1 dichiaravano ENTRAMBE una
+    # default gateway. ifup configurava eth0 per prima, poi la default di eth1
+    # falliva ("RTNETLINK answers: File exists") e ifup marcava TUTTA eth1 come
+    # fallita: non finiva in /run/network/ifstate, ifupdown-wait-online la
+    # aspettava per 300s e nginx/influxdb/supervisor restavano in coda dietro
+    # network-online.target — dopo uno stop/start della CT il sito era
+    # irraggiungibile per 5 minuti. Risolto togliendo gw= da net0 (eth0) nella
+    # config della CT su Proxmox: la default ora è quella pubblica su eth1.
+    # Qui non tocchiamo /etc/network/interfaces: nei CT Proxmox lo rigenera
+    # l'host a ogni start, qualsiasi modifica locale verrebbe persa.
+
+    # Rete di sicurezza: se per qualsiasi motivo un'interfaccia non venisse
+    # registrata (es. Proxmox rigenera interfaces con la doppia gateway), il
+    # boot si ferma comunque solo 15s invece di 300.
+    - name: Timeout basso per ifupdown-wait-online
+      ansible.builtin.lineinfile:
+        path: /etc/default/networking
+        regexp: '^#?\s*WAIT_ONLINE_TIMEOUT='
+        line: "WAIT_ONLINE_TIMEOUT=15"
+      tags: [network]
+
+    # systemd-networkd non gestisce nessuna interfaccia (le eth sono di
+    # ifupdown, wg0 di NetworkManager), ma il suo wait-online è abilitato e
+    # blocca network-online.target per 120s prima di fallire: da solo era
+    # i due terzi del tempo di boot.
+    - name: Disattiva systemd-networkd-wait-online (nessuna interfaccia gestita da networkd)
+      ansible.builtin.systemd:
+        name: systemd-networkd-wait-online.service
+        enabled: false
+        masked: true
+      tags: [network]
+
+    # La default route ora esce dal gateway pubblico su eth1 (simmetrica con il
+    # traffico in ingresso verso 194.28.98.61). Prima la default era 10.27.22.5
+    # e copriva per caduta TUTTA la rete ninux: le subnet 10.27.x che Babel non
+    # annuncia finirebbero ora al gateway pubblico, che le scarta. Rimettiamo
+    # quella raggiungibilità come rotta specifica: le rotte Babel (/24) restano
+    # più specifiche e continuano a vincere su questa /16.
+    # Non è in /etc/network/interfaces perché Proxmox lo rigenera a ogni start
+    # della CT. bird non la ridistribuisce: il protocol kernel ha import reject.
+    - name: Rotta statica verso la rete NINUX via eth0
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/ninux-route.service
+        mode: "0644"
+        content: |
+          # ANSIBLE MANAGED - vedi playbook.yml
+          [Unit]
+          Description=Rotta statica verso la rete NINUX ({{ ninux_network }}) via {{ ninux_gw_interface }}
+          After=networking.service
+          Wants=networking.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/sbin/ip route replace {{ ninux_network }} via {{ ninux_gateway }} dev {{ ninux_gw_interface }}
+          ExecStop=/sbin/ip route del {{ ninux_network }} via {{ ninux_gateway }} dev {{ ninux_gw_interface }}
+
+          [Install]
+          WantedBy=multi-user.target
+      register: ninux_route_unit
+      tags: [network]
+
+    - name: Abilita e avvia la rotta statica NINUX
+      ansible.builtin.systemd:
+        name: ninux-route.service
+        enabled: true
+        state: "{{ 'restarted' if ninux_route_unit.changed else 'started' }}"
+        daemon_reload: true
+      tags: [network]
+
   handlers:
     - name: restart openwisp2
       ansible.builtin.command: supervisorctl restart openwisp2 celery celerybeat
@@ -113,6 +215,14 @@
     # Email — NB: il dominio di OpenWISP è l'inventory_hostname nel file
     # "hosts" (openwisp.ninux-nnxx.it): il ruolo lo usa per nginx e Django.
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Rete: la default route esce dal gateway pubblico su eth1; la rete
+    # ninux resta raggiungibile via eth0 con una rotta specifica.
+    # ------------------------------------------------------------------
+    ninux_network: "10.27.0.0/16"
+    ninux_gateway: "10.27.22.5"
+    ninux_gw_interface: "eth0"
+
     openwisp2_default_from_email: "openwisp@ninux-nnxx.it"
     openwisp2_email_host: "localhost"
 
