@@ -235,6 +235,26 @@
     openwisp2_radius: true          # necessario anche per le WiFi Login Pages
     openwisp2_monitoring: true
 
+    # Immagini OpenWrt custom (build NinuxOpenwrt) esposte dal firmware upgrader:
+    # associano ogni file sysupgrade ai modelli di board che lo accettano, cosi'
+    # l'admin puo' caricarle come "Firmware Image" per la categoria giusta.
+    openwisp2_extra_django_settings_instructions:
+      - |
+        OPENWISP_CUSTOM_OPENWRT_IMAGES = (
+            ("ramips-mt7621-totolink_x5000r-squashfs-sysupgrade.bin", {
+                "label": "TOTOLINK X5000R",
+                "boards": ("TOTOLINK X5000R",),
+            }),
+            ("ipq806x-generic-tplink_c2600-squashfs-sysupgrade.bin", {
+                "label": "TP-Link Archer C2600",
+                "boards": ("TP-Link Archer C2600 v1", "TP-Link Archer C2600"),
+            }),
+            ("mediatek-filogic-zyxel_nwa50ax-pro-squashfs-sysupgrade.bin", {
+                "label": "Zyxel NWA50AX Pro",
+                "boards": ("Zyxel NWA50AX Pro",),
+            }),
+        )
+
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
     # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
     openwisp2_extra_django_apps:
