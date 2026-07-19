@@ -1,8 +1,55 @@
 #!/bin/sh
 # Gestito da OpenWISP: eseguito da openwisp-config dopo ogni applicazione
 # della configurazione (/etc/openwisp/post-reload-hook).
-# Installa bird2 se manca, valida /etc/bird.conf e ricarica il demone.
+# openwisp-config esegue UN SOLO post-reload-hook, quindi qui convivono due
+# compiti: (1) garantire la zona firewall delle interfacce OpenWISP e
+# (2) installare/ricaricare bird2. netjsonconfig 1.2 non sa rendere la sezione
+# firewall, per questo la zona si crea qui via uci invece che nel template.
 
+# --- (1) Firewall -----------------------------------------------------------
+# ZeroTier (owzt0d3e97, management + mesh Babel) e mesh (br-mesh, 802.11s) sono
+# create da OpenWISP e NON stanno in nessuna zona del firewall dell'immagine
+# base: cadono nella policy di input REJECT e il router rifiuta tutto in ingresso
+# (il monitoring non lo pinga, Babel non peera sul tunnel). Le raccogliamo nella
+# zona "ninux" completamente aperta (input/output/forward ACCEPT) con forwarding
+# bidirezionale verso la lan, cosi' anche i client degli AP entrano nel mesh.
+# Named-section idempotente: ricarica il firewall solo se cambia qualcosa.
+if command -v uci >/dev/null 2>&1; then
+    fw_changed=0
+    if [ "$(uci -q get firewall.ninux)" != "zone" ]; then
+        uci -q set firewall.ninux=zone
+        uci -q set firewall.ninux.name='ninux'
+        uci -q set firewall.ninux.input='ACCEPT'
+        uci -q set firewall.ninux.output='ACCEPT'
+        uci -q set firewall.ninux.forward='ACCEPT'
+        fw_changed=1
+    fi
+    for net in ZeroTier mesh; do
+        if ! uci -q get firewall.ninux.network | grep -qw "$net"; then
+            uci -q add_list firewall.ninux.network="$net"
+            fw_changed=1
+        fi
+    done
+    if [ "$(uci -q get firewall.ninux_lan)" != "forwarding" ]; then
+        uci -q set firewall.ninux_lan=forwarding
+        uci -q set firewall.ninux_lan.src='ninux'
+        uci -q set firewall.ninux_lan.dest='lan'
+        fw_changed=1
+    fi
+    if [ "$(uci -q get firewall.lan_ninux)" != "forwarding" ]; then
+        uci -q set firewall.lan_ninux=forwarding
+        uci -q set firewall.lan_ninux.src='lan'
+        uci -q set firewall.lan_ninux.dest='ninux'
+        fw_changed=1
+    fi
+    if [ "$fw_changed" = 1 ]; then
+        uci -q commit firewall
+        /etc/init.d/firewall reload >/dev/null 2>&1
+        logger -t openwisp-fw "zona firewall ninux applicata (ZeroTier/mesh, fwd<->lan)"
+    fi
+fi
+
+# --- (2) bird2 --------------------------------------------------------------
 [ -f /etc/bird.conf ] || exit 0
 
 if [ ! -x /etc/init.d/bird ]; then
