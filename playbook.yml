@@ -254,6 +254,12 @@
                 "boards": ("Zyxel NWA50AX Pro",),
             }),
         )
+      # Il ruolo scrive il context globale come NETJSONCONFIG_CONTEXT, ma questa
+      # versione di OpenWISP legge OPENWISP_CONTROLLER_CONTEXT: senza questo alias
+      # il context di default è vuoto e alla REGISTRAZIONE i template con
+      # {{ mesh_subnet1_ip1 }} / {{ radius_secret }} non validano (HTTP 400).
+      - |
+        OPENWISP_CONTROLLER_CONTEXT = NETJSONCONFIG_CONTEXT
 
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
     # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
@@ -345,6 +351,19 @@
     - name: Applica il ruolo wireguard_openwisp
       ansible.builtin.include_role:
         name: openwisp.wireguard_openwisp
+
+    # Override: il ruolo upstream ha un bug in update_vxlan.py — in
+    # Nmcli.edit_connection la seconda riga non e' un f-string, quindi passa i
+    # letterali {vni}/{remote} a `nmcli connection modify` -> errore ->
+    # lo script aborta PRIMA di aggiungere i peer FDB. Con >1 device il secondo
+    # VTEP non entra nella FDB della vxlan del server -> flooding Babel a un solo
+    # nodo -> mesh unidirezionale. Deployamo la versione corretta finche' non e'
+    # risolto upstream. Vedi files/update_vxlan.py.
+    - name: "Deploy update_vxlan.py corretto (fix f-string edit_connection)"
+      ansible.builtin.copy:
+        src: files/update_vxlan.py
+        dest: "{{ openwisp2_wireguard_path | default('/opt/wireguard-openwisp') }}/update_vxlan.py"
+        mode: "0755"
 
 # ============================================================================
 # Play 3 — Firewall (nftables) + forwarding/NAT per la VPN
