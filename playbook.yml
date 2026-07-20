@@ -125,6 +125,26 @@
           < {{ openwisp2_path }}/sync_ipam_hostnames.py > /dev/null 2>&1
       tags: [ipam]
 
+    # Network Topology: le topology ZeroTier (parser ZeroTierParser, strategy
+    # receive) vengono alimentate interrogando il controller ZeroTier locale
+    # (l'auth al controller è locale, mentre il fetch di OpenWISP non la gestisce).
+    # L'oggetto Topology si crea in admin; qui teniamo il feed periodico.
+    - name: Script feed topology ZeroTier
+      ansible.builtin.copy:
+        src: files/topology_zerotier_feed.py
+        dest: "{{ openwisp2_path }}/topology_zerotier_feed.py"
+        mode: "0644"
+      tags: [topology]
+
+    - name: Cron feed topology ZeroTier (ogni 5 minuti)
+      ansible.builtin.cron:
+        name: "feed topology ZeroTier"
+        minute: "*/5"
+        job: >-
+          {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/topology_zerotier_feed.py > /dev/null 2>&1
+      tags: [topology]
+
     # Al boot supervisor (uwsgi/celery) parte in parallelo a InfluxDB, che
     # impiega una decina di secondi ad aprire gli shard. openwisp-monitoring
     # chiama create_database() dentro AppConfig.ready(): se InfluxDB non
