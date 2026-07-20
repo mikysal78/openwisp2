@@ -317,9 +317,11 @@
     openwisp2_context:
       mesh_subnet1_ip1: "10.27.99.1"
       mesh_prefixlen: "24"
-      # Interfaccia WAN usata da bird sui router (stub OSPF): sovrascrivibile
-      # per device dalle variabili di configurazione.
-      wan_interface: "eth1"
+      # NB: wan_interface NON sta qui. La WAN (stub OSPF) cambia da router a router
+      # (eth1, eth0, wan, ...), quindi è un default_value del template "Bird2 Babel"
+      # (default eth1, copiato nelle variabili del device alla registrazione e
+      # sovrascrivibile per-device). Un default globale la forzerebbe uguale per
+      # tutti, rompendo i router con WAN diversa.
       # Shared secret RADIUS degli hotspot: sta in secrets.yml, cosi' i template
       # hotspot nel repo non contengono il segreto in chiaro.
       radius_secret: "{{ vault_radius_secret }}"
