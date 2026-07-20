@@ -7,57 +7,68 @@
 # firewall, per questo la zona si crea qui via uci invece che nel template.
 
 # --- (1) Firewall -----------------------------------------------------------
-# L'interfaccia ZeroTier (owzt<6hex del network id>, management + Babel) e la mesh
-# (br-mesh, 802.11s) sono create da OpenWISP e NON stanno in nessuna zona del
-# firewall dell'immagine base: cadono nella policy di input REJECT e il router
-# rifiuta tutto in ingresso -> Babel non peera sull'overlay (adiacenza
-# unidirezionale, metrica infinita), mgmt/LAN irraggiungibili. Le raccogliamo
-# nella zona "ninux" aperta (input/output/forward ACCEPT) con forwarding
-# bidirezionale verso la lan. La ZeroTier va coperta per DEVICE (owzt* wildcard)
-# perche' il nome logico owzt<id> cambia col network id.
-# Named-section idempotente: ricarica il firewall solo se cambia qualcosa.
+# L'interfaccia ZeroTier (owzt<6hex del network id>) e la mesh (br-mesh, 802.11s)
+# sono create da OpenWISP e NON stanno in nessuna zona del firewall dell'immagine
+# base: cadono nella policy di input REJECT -> Babel non peera (adiacenza
+# unidirezionale, metrica infinita), mgmt/LAN irraggiungibili. Le mettiamo in due
+# zone dedicate aperte: "VPN" (owzt*, per DEVICE con wildcard perche' il nome
+# logico owzt<id> cambia col network id) e "mesh" (br-mesh), con forwarding
+# bidirezionale fra VPN, mesh e lan (i client degli AP). Named-section idempotente.
 if command -v uci >/dev/null 2>&1; then
     fw_changed=0
-    if [ "$(uci -q get firewall.ninux)" != "zone" ]; then
-        uci -q set firewall.ninux=zone
-        uci -q set firewall.ninux.name='ninux'
-        uci -q set firewall.ninux.input='ACCEPT'
-        uci -q set firewall.ninux.output='ACCEPT'
-        uci -q set firewall.ninux.forward='ACCEPT'
+
+    # migrazione: rimuovi la vecchia zona unica "ninux" (versioni precedenti)
+    for old in ninux ninux_lan lan_ninux; do
+        if [ -n "$(uci -q get firewall.$old)" ]; then
+            uci -q delete firewall.$old
+            fw_changed=1
+        fi
+    done
+
+    # zona VPN (interfaccia ZeroTier owzt*, per device wildcard)
+    if [ "$(uci -q get firewall.vpn)" != "zone" ]; then
+        uci -q set firewall.vpn=zone
+        uci -q set firewall.vpn.name='VPN'
+        uci -q set firewall.vpn.input='ACCEPT'
+        uci -q set firewall.vpn.output='ACCEPT'
+        uci -q set firewall.vpn.forward='ACCEPT'
         fw_changed=1
     fi
-    # rimuovi l'eventuale rete "ZeroTier" (nome errato, non esiste) da vecchie run
-    if uci -q get firewall.ninux.network | grep -qw ZeroTier; then
-        uci -q del_list firewall.ninux.network='ZeroTier'
+    if ! uci -q get firewall.vpn.device | grep -qF 'owzt*'; then
+        uci -q add_list firewall.vpn.device='owzt*'
         fw_changed=1
     fi
-    # mesh (br-mesh 802.11s) come rete logica
-    if ! uci -q get firewall.ninux.network | grep -qw mesh; then
-        uci -q add_list firewall.ninux.network='mesh'
+
+    # zona mesh (br-mesh 802.11s)
+    if [ "$(uci -q get firewall.mesh)" != "zone" ]; then
+        uci -q set firewall.mesh=zone
+        uci -q set firewall.mesh.name='mesh'
+        uci -q set firewall.mesh.input='ACCEPT'
+        uci -q set firewall.mesh.output='ACCEPT'
+        uci -q set firewall.mesh.forward='ACCEPT'
         fw_changed=1
     fi
-    # ZeroTier: il nome logico owzt<id> cambia col network id, quindi la si copre
-    # per DEVICE con wildcard owzt* (fw4 supporta "list device" con glob).
-    if ! uci -q get firewall.ninux.device | grep -qF 'owzt*'; then
-        uci -q add_list firewall.ninux.device='owzt*'
+    if ! uci -q get firewall.mesh.network | grep -qw mesh; then
+        uci -q add_list firewall.mesh.network='mesh'
         fw_changed=1
     fi
-    if [ "$(uci -q get firewall.ninux_lan)" != "forwarding" ]; then
-        uci -q set firewall.ninux_lan=forwarding
-        uci -q set firewall.ninux_lan.src='ninux'
-        uci -q set firewall.ninux_lan.dest='lan'
-        fw_changed=1
-    fi
-    if [ "$(uci -q get firewall.lan_ninux)" != "forwarding" ]; then
-        uci -q set firewall.lan_ninux=forwarding
-        uci -q set firewall.lan_ninux.src='lan'
-        uci -q set firewall.lan_ninux.dest='ninux'
-        fw_changed=1
-    fi
+
+    # forwarding bidirezionali fra VPN, mesh e lan
+    for fwd in "vpn_lan:VPN:lan" "lan_vpn:lan:VPN" "vpn_mesh:VPN:mesh" \
+               "mesh_vpn:mesh:VPN" "mesh_lan:mesh:lan" "lan_mesh:lan:mesh"; do
+        sec="${fwd%%:*}"; rest="${fwd#*:}"; src="${rest%%:*}"; dst="${rest##*:}"
+        if [ "$(uci -q get firewall.$sec)" != "forwarding" ]; then
+            uci -q set firewall.$sec=forwarding
+            uci -q set firewall.$sec.src="$src"
+            uci -q set firewall.$sec.dest="$dst"
+            fw_changed=1
+        fi
+    done
+
     if [ "$fw_changed" = 1 ]; then
         uci -q commit firewall
         /etc/init.d/firewall reload >/dev/null 2>&1
-        logger -t openwisp-fw "zona firewall ninux applicata (owzt*/mesh, fwd<->lan)"
+        logger -t openwisp-fw "zone firewall VPN(owzt*)/mesh + forwarding applicate"
     fi
 fi
 
