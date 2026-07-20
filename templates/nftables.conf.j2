@@ -17,18 +17,13 @@ table inet filter {
 
         tcp dport {{ firewall_ssh_port }} ip saddr { {{ firewall_ssh_sources_v4 | join(', ') }} } accept comment "SSH solo dalla rete di gestione (il traffico mgmt arriva anche instradato dalla mesh, non si filtra per interfaccia)"
         tcp dport { 80, 443 } accept comment "nginx: OpenWISP + WiFi Login Pages"
-        udp dport {{ firewall_wg_port }} accept comment "WireGuard"
-
-        tcp dport {{ firewall_webhook_port }} ip saddr { {{ firewall_webhook_sources_v4 | join(', ') }} } accept comment "webhook aggiornamento peer WireGuard"
-        tcp dport {{ firewall_webhook_port }} ip6 saddr { {{ firewall_webhook_sources_v6 | join(', ') }} } accept comment "webhook aggiornamento peer WireGuard (IPv6)"
+        udp dport {{ firewall_zerotier_port }} accept comment "ZeroTier (controller + data plane)"
 
         udp dport { 1812, 1813 } ip saddr { {{ firewall_radius_sources_v4 | join(', ') }} } accept comment "FreeRADIUS (solo VPN e rete di gestione)"
 
 {% for iface in firewall_babel_interfaces %}
         iifname "{{ iface }}" udp dport 6696 accept comment "Babel (bird2)"
 {% endfor %}
-
-        iifname "{{ firewall_wg_interface }}" udp dport 4789 accept comment "VXLAN incapsulato nel tunnel WireGuard"
     }
 
     chain forward {
@@ -37,7 +32,6 @@ table inet filter {
         ct state established,related accept
         # I router si vedono tra loro attraverso l'hub; OpenWISP NON fa da
         # gateway: nessun forward verso {{ firewall_wan_interface }} e nessun NAT
-        iifname "{{ firewall_wg_interface }}" oifname "{{ firewall_wg_interface }}" accept comment "traffico router-router via VPN (IP dei tunnel)"
-        iifname "vxlan*" oifname "vxlan*" accept comment "traffico router-router instradato tra i segmenti VXLAN"
+        iifname "{{ firewall_vpn_interface }}" oifname "{{ firewall_vpn_interface }}" accept comment "traffico router-router via VPN ZeroTier"
     }
 }

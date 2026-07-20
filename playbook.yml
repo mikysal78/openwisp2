@@ -157,7 +157,7 @@
       tags: [network]
 
     # systemd-networkd non gestisce nessuna interfaccia (le eth sono di
-    # ifupdown, wg0 di NetworkManager), ma il suo wait-online è abilitato e
+    # ifupdown, zt* di zerotier-one), ma il suo wait-online è abilitato e
     # blocca network-online.target per 120s prima di fallire: da solo era
     # i due terzi del tempo di boot.
     - name: Disattiva systemd-networkd-wait-online (nessuna interfaccia gestita da networkd)
@@ -167,7 +167,7 @@
         masked: true
       tags: [network]
 
-    # La default route ora esce dal gateway pubblico su eth1 (simmetrica con il
+    # La default route ora esce dal gateway pubblico su ens19 (simmetrica con il
     # traffico in ingresso verso 194.28.98.61). Prima la default era 10.27.22.5
     # e copriva per caduta TUTTA la rete ninux: le subnet 10.27.x che Babel non
     # annuncia finirebbero ora al gateway pubblico, che le scarta. Rimettiamo
@@ -175,7 +175,7 @@
     # più specifiche e continuano a vincere su questa /16.
     # Non è in /etc/network/interfaces perché Proxmox lo rigenera a ogni start
     # della CT. bird non la ridistribuisce: il protocol kernel ha import reject.
-    - name: Rotta statica verso la rete NINUX via eth0
+    - name: Rotta statica verso la rete NINUX via ens18
       ansible.builtin.copy:
         dest: /etc/systemd/system/ninux-route.service
         mode: "0644"
@@ -216,12 +216,12 @@
     # "hosts" (openwisp.ninux-nnxx.it): il ruolo lo usa per nginx e Django.
     # ------------------------------------------------------------------
     # ------------------------------------------------------------------
-    # Rete: la default route esce dal gateway pubblico su eth1; la rete
-    # ninux resta raggiungibile via eth0 con una rotta specifica.
+    # Rete: la default route esce dal gateway pubblico su ens19; la rete
+    # ninux resta raggiungibile via ens18 con una rotta specifica.
     # ------------------------------------------------------------------
     ninux_network: "10.27.0.0/16"
     ninux_gateway: "10.27.22.5"
-    ninux_gw_interface: "eth0"
+    ninux_gw_interface: "ens18"
 
     openwisp2_default_from_email: "openwisp@ninux-nnxx.it"
     openwisp2_email_host: "localhost"
@@ -275,10 +275,6 @@
     openwisp2_context:
       mesh_subnet1_ip1: "10.27.99.1"
       mesh_prefixlen: "24"
-      # IP della vxlan1 sul router (link-local, stessa /16 delle vxlan-* del
-      # server, che NetworkManager configura con ipv4.method=link-local):
-      # serve a Babel per avere un next-hop IPv4 on-link sul tunnel.
-      vxlan_subnet1_ip1: "169.254.0.1"
       # Interfaccia WAN usata da bird sui router (stub OSPF): sovrascrivibile
       # per device dalle variabili di configurazione.
       wan_interface: "eth1"
@@ -311,59 +307,60 @@
     wifi_login_pages_organizations_src: "owlp_organizations/"
 
 # ============================================================================
-# Play 2 — Server WireGuard gestito da OpenWISP
+# Play 2 — Controller ZeroTier self-hosted
 #
-# Eseguilo SOLO DOPO aver creato l'oggetto VPN WireGuard nell'interfaccia
-# di OpenWISP (vedi README, passo 3), perché servono UUID e chiave della VPN:
-#
-#   ansible-playbook -i hosts playbook.yml --tags wireguard
-#
-# Alla prima esecuzione completa viene saltato automaticamente se UUID/key
-# sono ancora i placeholder.
+# OpenWISP gestisce la rete ZeroTier via API locale del servizio ZeroTier
+# (127.0.0.1:9993). Qui installiamo zerotier-one sulla CT e lo lasciamo girare
+# come nodo/controller. Dopo il play, in OpenWISP si crea l'oggetto VPN backend
+# ZeroTier:
+#   Host  = 127.0.0.1:9993   (controller locale, stesso host di OpenWISP)
+#   Token = contenuto di /var/lib/zerotier-one/authtoken.secret
+# OpenWISP rileva il node address, crea la rete e la gestisce; l'interfaccia sui
+# device diventa owzt<6hex del network id>, su cui gira Babel.
 # ============================================================================
-- name: Installa il server WireGuard integrato con OpenWISP
-  hosts: wireguard
+- name: Installa il controller ZeroTier self-hosted
+  hosts: openwisp2
   become: "{{ become | default('yes') }}"
-  tags: wireguard
-  vars:
-    # URL del controller OpenWISP (default: https://<inventory_hostname>)
-    openwisp2_wireguard_controller_url: "https://{{ inventory_hostname }}"
-
-    # Copiali dalla pagina dell'oggetto VPN in OpenWISP dopo averlo creato
-    # (la chiave sta in secrets.yml, non versionato)
-    openwisp2_wireguard_vpn_uuid: "c0f2c779-7979-4917-a4ba-89ca04156aa3"
-    openwisp2_wireguard_vpn_key: "{{ vault_wireguard_vpn_key }}"
-
-    # Token segreto per il webhook che OpenWISP chiama per aggiornare i peer
-    # (stesso valore del campo "Webhook AuthToken" dell'oggetto VPN nella UI)
-    openwisp2_wireguard_flask_key: "{{ vault_wireguard_flask_key }}"
-    openwisp2_wireguard_flask_port: 8081
-
-    # Riusa il certificato già presente sul CT
-    openwisp2_wireguard_ssl_cert: "/etc/ssl/acme/ninux-nnxx.it.fullchain.pem"
-    openwisp2_wireguard_ssl_key: "/etc/ssl/acme/ninux-nnxx.it.key"
-
+  tags: zerotier
   tasks:
-    - name: Verifica che UUID e key della VPN siano stati impostati
-      ansible.builtin.meta: end_host
-      when: "'INSERISCI' in openwisp2_wireguard_vpn_uuid or 'INSERISCI' in openwisp2_wireguard_vpn_key"
+    - name: Assicura curl (serve allo script di installazione)
+      ansible.builtin.apt:
+        name: curl
+        state: present
 
-    - name: Applica il ruolo wireguard_openwisp
-      ansible.builtin.include_role:
-        name: openwisp.wireguard_openwisp
+    # Lo script ufficiale aggiunge il repo apt firmato e installa zerotier-one;
+    # idempotente grazie a `creates`.
+    - name: Installa zerotier-one (script ufficiale, verifica GPG)
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -s https://install.zerotier.com | bash
+      args:
+        executable: /bin/bash
+        creates: /usr/sbin/zerotier-one
 
-    # Override: il ruolo upstream ha un bug in update_vxlan.py — in
-    # Nmcli.edit_connection la seconda riga non e' un f-string, quindi passa i
-    # letterali {vni}/{remote} a `nmcli connection modify` -> errore ->
-    # lo script aborta PRIMA di aggiungere i peer FDB. Con >1 device il secondo
-    # VTEP non entra nella FDB della vxlan del server -> flooding Babel a un solo
-    # nodo -> mesh unidirezionale. Deployamo la versione corretta finche' non e'
-    # risolto upstream. Vedi files/update_vxlan.py.
-    - name: "Deploy update_vxlan.py corretto (fix f-string edit_connection)"
-      ansible.builtin.copy:
-        src: files/update_vxlan.py
-        dest: "{{ openwisp2_wireguard_path | default('/opt/wireguard-openwisp') }}/update_vxlan.py"
-        mode: "0755"
+    - name: Abilita e avvia zerotier-one
+      ansible.builtin.systemd:
+        name: zerotier-one
+        enabled: true
+        state: started
+
+    - name: Attendi che l'API locale di ZeroTier risponda
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 9993
+        timeout: 30
+
+    - name: Leggi il node address ZeroTier
+      ansible.builtin.command: zerotier-cli -j info
+      register: zt_info
+      changed_when: false
+
+    - name: Riepilogo per creare l'oggetto VPN ZeroTier in OpenWISP
+      ansible.builtin.debug:
+        msg:
+          - "ZeroTier node address: {{ (zt_info.stdout | from_json).address }}"
+          - "In OpenWISP → VPN → Add: backend ZeroTier, Host 127.0.0.1:9993"
+          - "AuthToken = contenuto di /var/lib/zerotier-one/authtoken.secret"
 
 # ============================================================================
 # Play 3 — Firewall (nftables) + forwarding/NAT per la VPN
@@ -376,35 +373,27 @@
     firewall_ssh_port: 2400
     # SSH ammesso solo da queste sorgenti (rete di gestione/mesh).
     # NB: si filtra per IP sorgente e non per interfaccia perché il traffico
-    # di gestione arriva anche instradato via Babel su eth1.
+    # di gestione arriva anche instradato via Babel su ens19.
     firewall_ssh_sources_v4:
       - "10.27.0.0/16"
-    # eth0 = rete di gestione (10.27.22.18)
-    firewall_mgmt_interface: "eth0"
-    # eth1 = IP pubblico (194.28.98.61 / 2a07:7e81:3f1c::18)
-    firewall_wan_interface: "eth1"
-    firewall_wg_interface: "wg0"
-    firewall_wg_port: 51820
-    # Deve coincidere con la subnet creata in OpenWISP per la VPN WireGuard
-    firewall_wg_subnet_v4: "10.27.250.0/24"
-    firewall_webhook_port: 8081
-    # Il webhook lo chiama solo OpenWISP (stesso CT): loopback + propri IP
-    firewall_webhook_sources_v4:
-      - "127.0.0.1"
-      - "194.28.98.61"
-      - "10.27.22.18"
-    firewall_webhook_sources_v6:
-      - "::1"
-      - "2a07:7e81:3f1c::18"
+    # ens18 = rete di gestione (10.27.22.18)
+    firewall_mgmt_interface: "ens18"
+    # ens19 = IP pubblico (194.28.98.61 / 2a07:7e81:3f1c::18)
+    firewall_wan_interface: "ens19"
+    # ZeroTier: control plane + data plane sulla stessa UDP 9993
+    firewall_zerotier_port: 9993
+    # Interfaccia VPN ZeroTier sul SERVER: zerotier-one la nomina zt<hash>
+    # (sui router OpenWrt invece è owzt<id>). Forward router-router.
+    firewall_vpn_interface: "zt*"
     # RADIUS raggiungibile solo da VPN e rete di gestione
     firewall_radius_sources_v4:
-      - "10.27.250.0/24"
+      - "10.27.255.0/24"
       - "10.27.0.0/16"
     # Interfacce su cui è ammesso Babel (deve combaciare con il play bird):
-    # le vxlan* (L2 sopra WireGuard, dove girano i vicini Babel) + eth1
+    # l'interfaccia ZeroTier del server zt* (dove girano i vicini Babel) + ens19
     firewall_babel_interfaces:
-      - "vxlan*"
-      - "eth1"
+      - "zt*"
+      - "ens19"
 
   tasks:
     - name: Installa nftables
@@ -413,7 +402,7 @@
         state: present
         update_cache: true
 
-    - name: Abilita forwarding IPv4 e IPv6 (gateway per i peer WireGuard)
+    - name: Abilita forwarding IPv4 e IPv6 (instradamento router-router via ZeroTier)
       ansible.posix.sysctl:
         name: "{{ item }}"
         value: "1"
@@ -445,24 +434,23 @@
 
 # ============================================================================
 # Play 4 — bird2 (Babel per la rete NINUX)
-# La VPN partecipa al routing Babel tramite l'interfaccia WireGuard (wg0),
-# che sostituisce la vecchia interfaccia ZeroTier.
+# La VPN partecipa al routing Babel tramite l'interfaccia ZeroTier del server (zt*).
 # ============================================================================
 - name: Installa e configura bird2 (Babel)
   hosts: openwisp2
   become: "{{ become | default('yes') }}"
   tags: bird
   vars:
-    # Interfaccia da cui ricavare il router id: eth1 (IP pubblico)
-    bird_wan_interface: "eth1"
-    # Interfaccia WireGuard: la sua subnet viene annunciata via Babel (direct)
-    bird_wg_interface: "wg0"
-    # Interfacce su cui parla Babel: le VXLAN sopra il tunnel WireGuard
-    # (equivalenti L2 della vecchia ZeroTier) + eth1
-    # (togli eth1 se su quella tratta non ci sono vicini Babel)
+    # Interfaccia da cui ricavare il router id: ens19 (IP pubblico)
+    bird_wan_interface: "ens19"
+    # Interfaccia ZeroTier: la sua subnet viene annunciata via Babel (direct)
+    bird_vpn_interface: "zt*"
+    bird_vpn_subnet_v4: "10.27.255.0/24"
+    # Interfacce su cui parla Babel: l'interfaccia ZeroTier del server zt* + ens19
+    # (togli ens19 se su quella tratta non ci sono vicini Babel)
     bird_babel_interfaces:
-      - "vxlan*"
-      - "eth1"
+      - "zt*"
+      - "ens19"
 
   tasks:
     - name: Installa bird2

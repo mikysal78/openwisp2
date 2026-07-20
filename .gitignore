@@ -14,3 +14,6 @@ collections/
 # Python
 __pycache__/
 *.pyc
+
+# Config org wifi-login-pages con token RADIUS reale (usare basilicata.example.yml)
+owlp_organizations/basilicata/basilicata.yml

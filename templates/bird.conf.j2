@@ -1,6 +1,6 @@
 # {{ ansible_managed }}
 # bird2 lato server OpenWISP — allineato alla config Babel dei router NINUX:
-# - annuncia via Babel le rotte direct (subnet WireGuard) e quelle Babel
+# - annuncia via Babel le rotte direct (subnet ZeroTier) e quelle Babel
 # - non annuncia e non importa mai la default route
 # Configure logging
 log syslog all;
@@ -53,12 +53,12 @@ protocol device {
     scan time 10;
 };
 
-# Annuncia la subnet della VPN WireGuard ({{ firewall_wg_subnet_v4 | default('10.27.250.0/24') }})
+# Annuncia la subnet della VPN ZeroTier ({{ bird_vpn_subnet_v4 | default('10.27.255.0/24') }})
 protocol direct vpn {
-    description "Direct routes VPN WireGuard";
+    description "Direct routes VPN ZeroTier";
     ipv4;
     ipv6;
-    interface "{{ bird_wg_interface }}";
+    interface "{{ bird_vpn_interface }}";
     check link no;
 }
 
