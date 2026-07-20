@@ -2,7 +2,3 @@
 # L'inventory_hostname È il dominio pubblico (usato da nginx/Django)
 [openwisp2]
 openwisp.ninux-nnxx.it ansible_host=10.27.22.18 ansible_port=2400 ansible_user=root
-
-# Server WireGuard: stesso CT di OpenWISP
-[wireguard]
-openwisp.ninux-nnxx.it ansible_host=10.27.22.18 ansible_port=2400 ansible_user=root

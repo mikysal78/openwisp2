@@ -1,20 +1,19 @@
-# OpenWISP2 full + WireGuard + WiFi Login Pages
+# OpenWISP2 full + ZeroTier + WiFi Login Pages
 
-Playbook Ansible che installa su un CT (Debian 12 / Ubuntu 22.04+):
+Playbook Ansible che installa su un CT (Debian 13 / Ubuntu 22.04+):
 
 - **OpenWISP2 full**: controller, monitoring, network topology, firmware upgrader, RADIUS
 - **WiFi Login Pages** (captive portal)
-- **Server WireGuard** integrato con OpenWISP (peer aggiornati automaticamente via webhook)
+- **Controller ZeroTier self-hosted** sulla stessa CT, gestito da OpenWISP
 
 Il certificato SSL **non** viene gestito dal playbook: lo carichi tu manualmente sul CT (vedi sotto).
 
 ## Prerequisiti
 
-- CT con Debian 12 o Ubuntu 22.04/24.04, accesso SSH come root (o utente sudo)
+- CT con Debian 13 o Ubuntu 22.04/24.04, accesso SSH come root (o utente sudo)
 - Ansible ≥ 2.13 sulla macchina da cui lanci il playbook
-- **Se il CT è un LXC su Proxmox**: il modulo `wireguard` è nel kernel dell'host
-  (kernel ≥ 5.6, quindi ok su Proxmox 7+). Per un container *unprivileged*
-  assicurati che sia disponibile `/dev/net/tun`:
+- **Se il CT è un LXC su Proxmox**: ZeroTier usa `/dev/net/tun`, che va esposto
+  nel container *unprivileged*:
 
   ```
   # /etc/pve/lxc/<ID>.conf
@@ -40,18 +39,27 @@ Poi modifica:
   con il tuo dominio reale e `ansible_host` con l'IP del CT
 - `playbook.yml` → `wifi_login_pages_domains`, email
 - `owlp_organizations/` → configurazione delle organizzazioni per le login pages
+- `secrets.yml` → copia da `secrets.example.yml` e metti il secret RADIUS
 
-## 2. Prima esecuzione (OpenWISP + WiFi Login Pages)
+## 2. Esecuzione (OpenWISP + ZeroTier + WiFi Login Pages)
 
 ```bash
 ansible-playbook -i hosts playbook.yml
 ```
 
-Il play WireGuard si auto-esclude finché UUID/key della VPN sono i placeholder.
+Il playbook installa in sequenza: OpenWISP + WiFi Login Pages (Play 1), il
+controller ZeroTier (Play 2), il firewall nftables (Play 3), bird2/Babel (Play 4).
 
 Al termine vai su `https://<tuo-dominio>/admin`: il ruolo crea l'utente
 **admin / admin** — cambia subito la password da
 `https://<tuo-dominio>/admin/password_change/`.
+
+> **Prima installazione — nota su freeradius**: su un CT nuovo l'handler
+> "Restart freeradius" del ruolo può scattare prima che nginx serva su 443.
+> `rlm_rest` apre un pool verso `https://<dominio>/api/v1/freeradius` e, se
+> nginx non risponde ancora, freeradius non parte e il play si ferma. Se
+> capita: `systemctl restart nginx && systemctl restart freeradius`, poi
+> rilancia il playbook (le parti già fatte sono idempotenti).
 
 ## 3. Certificato SSL manuale
 
@@ -68,86 +76,78 @@ toccherà mai: li rinnovi tu in autonomia (dopo il rinnovo:
 > `wifi.ninux-nnxx.it` (wildcard `*.ninux-nnxx.it` o SAN). Verifica con:
 > `openssl x509 -in /etc/ssl/acme/ninux-nnxx.it.fullchain.pem -noout -text | grep DNS`
 
-## 4. WireGuard (VXLAN over WireGuard)
+## 4. VPN ZeroTier
 
-**Design**: la VPN serve solo a far vedere i router tra loro e a scambiare
-le rotte via Babel — **ogni router mantiene il proprio gateway e OpenWISP
-NON fa da gateway** (nessun NAT, nessuna default route via tunnel).
+**Design**: la VPN serve solo a far vedere i router tra loro e a scambiare le
+rotte via Babel — **ogni router mantiene il proprio gateway e OpenWISP NON fa
+da gateway** (nessun NAT, nessuna default route via tunnel).
 
-Per questo il backend consigliato è **VXLAN over WireGuard**: la VXLAN crea
-una L2 sopra il tunnel (l'equivalente della vecchia ZeroTier), che permette
-a Babel di scoprire i vicini via multicast — cosa che su WireGuard "puro"
-hub-and-spoke non funziona, perché il cryptokey routing blocca i pacchetti
-link-local/multicast di Babel.
+Si usa **ZeroTier** con **controller self-hosted sulla stessa CT**: ZeroTier
+fornisce una L2 su cui Babel scopre i vicini via multicast, come nel design
+storico NINUX. L'interfaccia sui router torna a chiamarsi `owzt<6hex del
+network id>` e su di essa gira Babel.
 
-### 4a. Crea la VPN in OpenWISP
+### 4a. Controller ZeroTier (Play 2)
 
-1. Admin → **VPN servers** → Add:
-   - Backend: **VXLAN over WireGuard**
-   - Host: `194.28.98.61` (IP pubblico del CT), porta `51820`
-   - Subnet: crea una subnet dedicata (`10.27.250.0/24`, la stessa di
-     `firewall_wg_subnet_v4` nel play firewall) — è la rete dei tunnel
-   - Webhook endpoint: `https://openwisp.ninux-nnxx.it:8081/trigger-update`
-   - Webhook AuthToken: lo stesso valore di `openwisp2_wireguard_flask_key` nel playbook
-2. Salva e copia **UUID** e **Key** dell'oggetto VPN.
+Il Play 2 (`--tags zerotier`) installa `zerotier-one` sulla CT (script ufficiale
+firmato) e avvia il servizio. Il nodo diventa il controller della rete che
+OpenWISP creerà. A fine play vengono stampati il **node address** e il percorso
+del token API.
 
-### 4b. Deploy del server WireGuard
+### 4b. Crea la VPN in OpenWISP
 
-Incolla UUID, key e token nel play `wireguard` di `playbook.yml`, poi:
+Admin → **VPN servers** → Add:
 
-```bash
-ansible-playbook -i hosts playbook.yml --tags wireguard
-```
+- Backend: **ZeroTier**
+- Host: `127.0.0.1:9993` (il controller gira sulla stessa CT di OpenWISP;
+  l'API ZeroTier ascolta in locale su 9993)
+- AuthToken: il contenuto di `/var/lib/zerotier-one/authtoken.secret` sul CT
+  (`sudo cat /var/lib/zerotier-one/authtoken.secret`)
+- Subnet: `10.27.255.0/24` (la stessa di `bird_vpn_subnet_v4` /
+  `firewall_radius_sources_v4` nei play) — è la rete gestita ZeroTier
 
-Il ruolo installa anche NetworkManager e lo script `update_vxlan.py`: quando
-un device si registra, OpenWISP chiama il webhook e sul server vengono creati
-peer WireGuard e interfacce `vxlan<VNI>` automaticamente.
+Salvando, OpenWISP rileva il node address del controller e **crea la rete
+ZeroTier**, di cui gestisce membri e indirizzi.
+
+> Il nome pubblico `zerotier.ninux-nnxx.it` (CNAME di openwisp) è solo un
+> riferimento DNS: per l'oggetto VPN si usa comunque `127.0.0.1:9993`, perché
+> OpenWISP parla all'API locale del controller.
 
 ### 4c. Template client
 
 In Admin → **Templates** → Add:
 
 - Type: **VPN-client**
-- VPN: la VPN creata sopra
-- Automatic tunnel provisioning: attivo
+- VPN: la VPN ZeroTier creata sopra
+- Automatic tunnel provisioning: **attivo** (OpenWISP genera per ogni device
+  `zerotier_member_id`, `identity_secret` e l'IP interno, e lo autorizza sulla rete)
 
-Usa la configurazione **auto-generata senza modificarla**: `allowed_ips`
-resta la subnet della VPN (10.27.250.0/24), così nel tunnel passa solo il
-traffico tra router (e la VXLAN incapsulata) e ogni router continua a usare
-il **proprio** gateway per tutto il resto. Non impostare `0.0.0.0/0`: faresti
-di OpenWISP il gateway di tutti i nodi.
+Sul router l'interfaccia risultante è `owzt<id>`: è quella su cui Babel aggancia
+le adiacenze (già configurato nel template bird come `owzt*`). Il resto della
+config dei router (kernel/direct/babel/OSPF per la default via `br-mesh`) resta
+identico.
 
-Sul router l'interfaccia VXLAN risultante è quella su cui va agganciato
-Babel nella config bird del nodo (al posto della vecchia `owzt0d3e97` di
-ZeroTier); il resto della tua config dei router (kernel/direct/babel/OSPF
-per la default via `br-mesh`) resta identico.
-
-> **Router senza internet propria**: funzionano senza modifiche. La default
-> la imparano dalla mesh vicina via OSPF su `br-mesh` (come già previsto
-> dalla tua config), e il tunnel WireGuard verso `194.28.98.61` esce
-> semplicemente attraverso quel gateway: per WireGuard è normale traffico
-> UDP che segue la rotta di default del momento. I filtri Babel continuano
-> a garantire che la default non arrivi mai dalla VPN, quindi ogni nodo
-> usa sempre il gateway della propria zona (WAN locale o mesh vicina).
+> **Router senza internet propria**: funzionano senza modifiche. La default la
+> imparano dalla mesh vicina via OSPF su `br-mesh`, e ZeroTier raggiunge i peer
+> uscendo dal gateway del momento (UDP 9993, segue la rotta di default). I filtri
+> Babel garantiscono che la default non arrivi mai dalla VPN.
 
 ## 4d. Firewall
 
 Il play `firewall` (nftables) applica una policy **default drop** in ingresso.
 Niente NAT: OpenWISP non fa da gateway; il forward è permesso **solo**
-`wg0 → wg0` (traffico router↔router attraverso l'hub).
+`owzt* → owzt*` (traffico router↔router attraverso l'hub).
 
 Interfacce del CT: **eth0** = rete di gestione (10.27.22.18),
 **eth1** = IP pubblico (194.28.98.61 / 2a07:7e81:3f1c::18).
 
 | Porta | Proto | Da | Servizio |
 |-------|-------|-----|----------|
-| 2400  | TCP   | solo `eth0` (gestione) | SSH |
+| 2400  | TCP   | solo rete di gestione (`10.27.0.0/16`) | SSH |
 | 80, 443 | TCP | ovunque | nginx (OpenWISP + WiFi Login Pages) |
-| 51820 | UDP   | ovunque | WireGuard |
-| 4789  | UDP   | solo da `wg0` | VXLAN (incapsulata nel tunnel) |
-| 8081  | TCP   | solo loopback e IP del CT | webhook aggiornamento peer |
-| 1812–1813 | UDP | solo VPN (10.27.250.0/24) e gestione (10.27.0.0/16) | FreeRADIUS |
-| 6696  | UDP   | solo interfacce `vxlan*` e `eth1` | Babel (bird2) |
+| 9993  | UDP   | ovunque | ZeroTier (controller + data plane) |
+| 1812–1813 | UDP | solo VPN (10.27.255.0/24) e gestione (10.27.0.0/16) | FreeRADIUS |
+| 6696  | UDP   | solo interfacce `owzt*` e `eth1` | Babel (bird2) |
 
 Il play si applica anche da solo con `--tags firewall`.
 
@@ -156,24 +156,26 @@ Il play si applica anche da solo con `--tags firewall`.
 Il play `bird` (tag omonimo) installa **bird2** e applica
 `templates/bird.conf.j2`, allineata alla config dei router NINUX:
 
-- **Babel** gira sulle interfacce `vxlan*` (la L2 sopra WireGuard, al posto
-  della vecchia ZeroTier) e su `eth1`, con `check link yes` e `rxcost 600`
-- il protocollo **direct `vpn`** annuncia via Babel la subnet dei tunnel
-  (10.27.250.0/24) presa da `wg0`
-- come sui router, la **default route non viene mai né annunciata né
-  importata** via Babel (filtri identici ai tuoi: `net != 0.0.0.0/0` /
-  `net != ::/0`): ogni nodo tiene il suo gateway
-- kernel4/kernel6 con `scan time 20`, `learn yes`, `merge paths yes` come
-  sui router; il router id è ricavato da `eth1`
+- **Babel** gira sulle interfacce `owzt*` (la VPN ZeroTier) e su `eth1`, con
+  `check link yes` e `rxcost 600`
+- il protocollo **direct `vpn`** annuncia via Babel la subnet ZeroTier
+  (10.27.255.0/24) presa da `owzt*`
+- come sui router, la **default route non viene mai né annunciata né importata**
+  via Babel (filtri identici ai router: `net != 0.0.0.0/0` / `net != ::/0`):
+  ogni nodo tiene il suo gateway
+- kernel4/kernel6 con `scan time 20`, `learn yes`, `merge paths yes`; il router
+  id è ricavato da `eth1`
 
 La config viene validata con `bird -p` prima dell'applicazione.
 
-> NB: `wg0` e le `vxlan*` esistono solo dopo il deploy WireGuard (passo 4b)
-> e la registrazione dei primi device; con `check link yes` bird le ignora
-> finché non compaiono, quindi il play si può lanciare anche prima.
+> NB: le `owzt*` esistono solo dopo che i primi device si sono registrati e
+> hanno joinato la rete ZeroTier; con `check link yes` bird le ignora finché
+> non compaiono, quindi il play si può lanciare anche prima.
 
 ## 5. WiFi Login Pages
 
-Le login pages rispondono su `https://wifi.example.com`. Per ogni
-organizzazione serve un file YAML in `owlp_organizations/` con UUID e token
-RADIUS (vedi `owlp_organizations/README.md`), poi rilancia il playbook.
+Le login pages rispondono su `https://wifi.<dominio>`. L'app
+[openwisp-wifi-login-pages](https://github.com/openwisp/openwisp-wifi-login-pages)
+la clona e builda il ruolo `openwisp.wifi_login_pages` (nulla da fare a mano).
+Per ogni organizzazione serve un file YAML in `owlp_organizations/` con UUID e
+token RADIUS (vedi `owlp_organizations/README.md`), poi rilancia il playbook.
