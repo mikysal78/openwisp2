@@ -85,6 +85,28 @@
       notify: restart openwisp2
       tags: [context]
 
+    # freeradius (rlm_rest) e le WiFi Login Pages chiamano l'API OpenWISP via i
+    # domini pubblici. Se questi risolvono all'IP pubblico, la sorgente delle
+    # richieste risulta l'IP pubblico (es. l'IPv6 ::18) e la difesa
+    # OPENWISP_RADIUS_FREERADIUS_ALLOWED_HOSTS (default 127.0.0.1) le rifiuta con
+    # 403. Mappiamo i domini su loopback: le chiamate a sé stesso restano su
+    # 127.0.0.1 (il cert *.ninux-nnxx.it è comunque valido, l'Host non cambia).
+    - name: "/etc/hosts - domini OpenWISP/WiFi su loopback"
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.0\.1\s'
+        line: "127.0.0.1\tlocalhost {{ inventory_hostname }} {{ wifi_login_pages_domains | join(' ') }}"
+      notify: Restart freeradius
+      tags: [etchost]
+
+    - name: "/etc/hosts - rimuovi i mapping dei domini su IP non-loopback"
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: "^(?!127\\.0\\.0\\.1|::1)\\S+\\s+.*{{ inventory_hostname | regex_escape }}"
+        state: absent
+      notify: Restart freeradius
+      tags: [etchost]
+
     # OpenWISP crea gli IP in IPAM senza nome del device (bulk_create, nessun
     # segnale): questo script fa il sync e lo eseguiamo periodicamente.
     - name: Script di sync hostname -> IPAM
@@ -294,6 +316,11 @@
     # risponderebbe il vhost delle wifi login pages ([::]:443) al posto di
     # OpenWISP (che di default ascolta solo IPv4)
     openwisp2_nginx_ipv6: true
+
+    # La riga 127.0.0.1 di /etc/hosts la gestiamo noi nei post_tasks (mappa sia il
+    # dominio OpenWISP sia quello WiFi su loopback): disabilitiamo la task del
+    # ruolo per non entrare in tug-of-war su quella riga.
+    openwisp2_inventory_hostname_localhost: false
 
     # ------------------------------------------------------------------
     # WiFi Login Pages (captive portal) — stesso certificato
