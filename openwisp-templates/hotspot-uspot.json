@@ -42,7 +42,7 @@
             "acct_secret": "{{ radius_secret }}",
             "counters": "1",
             "uam_port": "3990",
-            "uam_server": "https://wifi.ninux-nnxx.it/default/",
+            "uam_server": "https://wifi.ninux-nnxx.it/basilicata/",
             "nasid": "{{ name }}",
             "nasmac": "{{ mac_address }}",
             "idle_timeout": "600"
