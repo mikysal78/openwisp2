@@ -11,6 +11,7 @@ template dentro OpenWISP.
 | `mesh-80211s.json` | Mesh 802.11s 2.4GHz | sì | sì |
 | `ap-24ghz.json` | AP WiFi 2.4GHz | no | no |
 | `ap-dualband.json` | AP WiFi 2.4+5GHz (dual band) | no | no |
+| `ap-dualssid.json` | AP WiFi dual SSID 2.4+5GHz | no | no |
 | `hotspot-chilli.json` | Hotspot CoovaChilli 2.4GHz | no | no |
 | `hotspot-uspot.json` | Hotspot uspot 2.4GHz | no | no |
 
@@ -46,6 +47,7 @@ t.save()
 | `vxlan_subnet1_ip1` | regola subnet-division `vxlan` (IPAM `169.254.0.0/16`) | IP del capo router del tunnel VPN |
 | `wan_interface` | `default_values` del template bird (`eth1`) | solo per lo stub OSPF: cambiala nel device se la WAN è `eth0.2`/`wan` |
 | `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `ninux2026`) | sovrascrivibili per device |
+| `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
 | `name`, `mac_address` | OpenWISP | si risolvono per-device (NAS-Identifier / Called-Station) |
 
@@ -92,6 +94,15 @@ python3 openwisp-templates/build_bird_template.py
   (`sae+ccmp`, `ieee80211w: 2`). `radio0` è sul **canale 1**, lo stesso della
   mesh: è la stessa radio, non può stare su due canali. Il dual band aggiunge
   `radio1` (5GHz, canale 36, 802.11ac, 80MHz).
+
+- `ap-dualssid.json` — identico a `ap-dualband.json` ma con **due SSID** su
+  entrambe le bande (2.4+5GHz), tutti e due WPA3-SAE sulla stessa rete `lan`. Il
+  primo SSID usa le variabili degli altri AP (`wifi_ssid`/`wifi_password`), il
+  secondo usa `wifi_ssid2`/`wifi_password2`.
+  - `default_values` consigliati sul template: `wifi_ssid2 = NINUX 2`,
+    `wifi_password2 = CHANGEME`.
+  - applicalo **al posto** di `ap-24ghz`/`ap-dualband` (stessi nomi radio/iface),
+    non insieme.
 
 ## Template hotspot (captive portal su 2.4GHz)
 
