@@ -1,0 +1,108 @@
+{
+    "interfaces": [
+        {
+            "name": "wlan0",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio0",
+                "mode": "access_point",
+                "ssid": "{{ wifi_ssid }}",
+                "hidden": false,
+                "network": [
+                    "lan"
+                ],
+                "encryption": {
+                    "protocol": "wpa3_personal",
+                    "cipher": "ccmp",
+                    "key": "{{ wifi_password }}",
+                    "ieee80211w": "2"
+                }
+            }
+        },
+        {
+            "name": "wlan1",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio1",
+                "mode": "access_point",
+                "ssid": "{{ wifi_ssid }}",
+                "hidden": false,
+                "network": [
+                    "lan"
+                ],
+                "encryption": {
+                    "protocol": "wpa3_personal",
+                    "cipher": "ccmp",
+                    "key": "{{ wifi_password }}",
+                    "ieee80211w": "2"
+                }
+            }
+        },
+        {
+            "name": "wlan0_b",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio0",
+                "mode": "access_point",
+                "ssid": "{{ wifi_ssid2 }}",
+                "hidden": false,
+                "network": [
+                    "lan"
+                ],
+                "encryption": {
+                    "protocol": "wpa3_personal",
+                    "cipher": "ccmp",
+                    "key": "{{ wifi_password2 }}",
+                    "ieee80211w": "2"
+                }
+            }
+        },
+        {
+            "name": "wlan1_b",
+            "type": "wireless",
+            "disabled": false,
+            "wireless": {
+                "radio": "radio1",
+                "mode": "access_point",
+                "ssid": "{{ wifi_ssid2 }}",
+                "hidden": false,
+                "network": [
+                    "lan"
+                ],
+                "encryption": {
+                    "protocol": "wpa3_personal",
+                    "cipher": "ccmp",
+                    "key": "{{ wifi_password2 }}",
+                    "ieee80211w": "2"
+                }
+            }
+        }
+    ],
+    "radios": [
+        {
+            "name": "radio0",
+            "phy": "phy0",
+            "driver": "mac80211",
+            "protocol": "802.11n",
+            "channel": 1,
+            "channel_width": 20,
+            "country": "IT",
+            "disabled": false,
+            "band": "2g"
+        },
+        {
+            "name": "radio1",
+            "phy": "phy1",
+            "driver": "mac80211",
+            "protocol": "802.11ac",
+            "channel": 36,
+            "channel_width": 80,
+            "country": "IT",
+            "disabled": false,
+            "band": "5g"
+        }
+    ]
+}
