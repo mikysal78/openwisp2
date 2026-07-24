@@ -443,10 +443,12 @@
       - "10.27.255.0/24"
       - "10.27.0.0/16"
     # Interfacce su cui è ammesso Babel (deve combaciare con il play bird):
-    # l'interfaccia ZeroTier del server zt* (dove girano i vicini Babel) + ens19
+    # zt* (vicini ZeroTier) + ens19/ens18 (la LAN NINUX: ens18 ed ens19 sono
+    # sullo stesso L2, i vicini Babel si vedono su entrambe).
     firewall_babel_interfaces:
       - "zt*"
       - "ens19"
+      - "ens18"
 
   tasks:
     - name: Installa nftables
@@ -499,11 +501,17 @@
     # Interfaccia ZeroTier: la sua subnet viene annunciata via Babel (direct)
     bird_vpn_interface: "zt*"
     bird_vpn_subnet_v4: "10.27.255.0/24"
-    # Interfacce su cui parla Babel: l'interfaccia ZeroTier del server zt* + ens19
-    # (togli ens19 se su quella tratta non ci sono vicini Babel)
+    # Interfacce aggiuntive originate come reti CONNESSE in Babel (oltre a zt*):
+    # ens18 = LAN di gestione 10.27.22.0/24. Serve perché il server la annunci a
+    # metrica ~0 e i router remoti tornino dal server (vedi commento nel template).
+    bird_direct_extra_interfaces:
+      - "ens18"
+    # Interfacce su cui parla Babel: zt* (vicini ZeroTier) + ens19 + ens18 (la LAN
+    # NINUX; ens18 ed ens19 condividono l'L2, i vicini si vedono su entrambe).
     bird_babel_interfaces:
       - "zt*"
       - "ens19"
+      - "ens18"
 
   tasks:
     - name: Installa bird2
