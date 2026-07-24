@@ -295,6 +295,10 @@
                 "label": "Zyxel NWA50AX Pro",
                 "boards": ("Zyxel NWA50AX Pro",),
             }),
+            ("x86-64-generic-squashfs-combined-efi.img.gz", {
+                "label": "Generic x86/64",
+                "boards": ("x86_64_efi", "x86_64", "Default string Default string"),
+            }),
         )
       # Il ruolo scrive il context globale come NETJSONCONFIG_CONTEXT, ma questa
       # versione di OpenWISP legge OPENWISP_CONTROLLER_CONTEXT: senza questo alias
