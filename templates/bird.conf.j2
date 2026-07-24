@@ -53,12 +53,16 @@ protocol device {
     scan time 10;
 };
 
-# Annuncia la subnet della VPN ZeroTier ({{ bird_vpn_subnet_v4 | default('10.27.255.0/24') }})
+# Annuncia come reti CONNESSE la subnet ZeroTier ({{ bird_vpn_subnet_v4 | default('10.27.255.0/24') }})
+# e la LAN di gestione (ens18). Originare la LAN qui la fa annunciare in Babel a
+# metrica ~0: i router remoti scelgono il server come via di ritorno verso
+# {{ firewall_mgmt_interface | default('ens18') }}, invece di un router di test con la WAN sulla LAN
+# (che la annuncerebbe come connessa con metrica migliore e romperebbe il ritorno).
 protocol direct vpn {
-    description "Direct routes VPN ZeroTier";
+    description "Direct routes: VPN ZeroTier + LAN di gestione";
     ipv4;
     ipv6;
-    interface "{{ bird_vpn_interface }}";
+    interface "{{ bird_vpn_interface }}"{% for iface in bird_direct_extra_interfaces | default([]) %}, "{{ iface }}"{% endfor %};
     check link no;
 }
 

@@ -33,5 +33,11 @@ table inet filter {
         # I router si vedono tra loro attraverso l'hub; OpenWISP NON fa da
         # gateway: nessun forward verso {{ firewall_wan_interface }} e nessun NAT
         iifname "{{ firewall_vpn_interface }}" oifname "{{ firewall_vpn_interface }}" accept comment "traffico router-router via VPN ZeroTier"
+        # Instradamento dell'intera rete NINUX (10.0.0.0/8) attraverso l'hub:
+        # LAN di gestione <-> overlay/mesh. Il traffico mgmt entra da ens18 O ens19
+        # (stesso L2, l'ARP di {{ firewall_mgmt_interface | default('ens18') }} risponde su entrambe), quindi si filtra
+        # per rete e non per interfaccia. Il ritorno lo copre gia' ct established.
+        ip daddr 10.0.0.0/8 accept comment "instradamento rete NINUX (dest)"
+        ip saddr 10.0.0.0/8 accept comment "instradamento rete NINUX (sorg)"
     }
 }
