@@ -52,7 +52,7 @@
         {
             "config_name": "uhttpd",
             "config_value": "uspot",
-            "listen_http": ["192.168.182.1:80"],
+            "listen_http": ["192.168.182.1:8080"],
             "redirect_https": "0",
             "max_requests": "5",
             "no_dirlists": "1",
@@ -108,6 +108,7 @@
             "name": "Redirect-unauth-captive-CPD",
             "src": "captive",
             "src_dport": "80",
+            "dest_port": "8080",
             "proto": "tcp",
             "target": "DNAT",
             "reflection": "0",
@@ -132,7 +133,7 @@
             "config_name": "rule",
             "name": "Allow-captive-CPD-WEB-UAM",
             "src": "captive",
-            "dest_port": "80 443 3990",
+            "dest_port": "80 443 3990 8080",
             "proto": "tcp",
             "target": "ACCEPT"
         },
