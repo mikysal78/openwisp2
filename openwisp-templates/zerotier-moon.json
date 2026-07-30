@@ -1,0 +1,16 @@
+{
+  "_comment": "Template OpenWISP2: fa orbitare ogni router sul ZeroTier MOON dell'hub NINUX (10.27.22.18 / 194.28.98.61:9993). Il moon e' un root ZeroTier privato: i peer che NON riescono ad andare in P2P diretto fanno relay attraverso l'hub locale (~1-100ms secondo il sito) invece che sui PLANET pubblici di ZeroTier (oltreoceano, ~250ms). NON e' un gateway: nessuna default route, nessun NAT. Backend=OpenWRT, Type=Generic. Assegnabile 'enabled by default'.",
+  "backend": "netjsonconfig.backends.openwrt.OpenWrt",
+  "config": {
+    "files": [
+      {
+        "path": "/etc/uci-defaults/95-zerotier-moon",
+        "mode": "0755",
+        "contents": "#!/bin/sh\n# Orbit sul ZeroTier moon NINUX (relay locale a bassa latenza).\n# Eseguito al boot dagli uci-defaults. L'orbit e' PERSISTENTE (scrive\n# /var/lib/zerotier-one/moons.d sul router): basta un successo, poi il moon\n# viene ricaricato ad ogni avvio. Ripeterlo e' innocuo (idempotente).\nMOON=\"{{ zt_moon_id }}\"\ni=0\nwhile [ $i -lt 30 ]; do\n    if zerotier-cli info >/dev/null 2>&1; then\n        if zerotier-cli orbit \"$MOON\" \"$MOON\" >/dev/null 2>&1; then\n            logger -t zt-moon \"orbit $MOON OK\"\n            exit 0\n        fi\n    fi\n    sleep 2\n    i=$((i+1))\ndone\nlogger -t zt-moon \"orbit $MOON non riuscito: zerotier non pronto entro il timeout\"\n# esci 0 cosi' l'uci-defaults non resta a ripetere ad ogni boot; il template\n# lo riposa comunque al prossimo apply se serve.\nexit 0\n"
+      }
+    ]
+  },
+  "default_values": {
+    "zt_moon_id": "2a80fef2b3"
+  }
+}
