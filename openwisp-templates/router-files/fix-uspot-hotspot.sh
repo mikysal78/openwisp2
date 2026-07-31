@@ -66,6 +66,17 @@ if [ -n "$RULE" ]; then
     log "input captive dest_port -> 80 443 3990 8080 (firewall.$RULE)"
 fi
 
+# walled-garden: entry STATICA verso il portale nell'ipset wlist. Serve perche'
+# il dnsmasq del firmware e' 'no-nftset' e non popola il set via DNS -> senza
+# questa entry il captive fa REJECT verso il portale (ERR_CONNECTION_REFUSED).
+PORTAL_IP="${PORTAL_IP:-194.28.98.61}"
+WLIST=$(uci show firewall 2>/dev/null | sed -n "s/^firewall\.\([^.]*\)\.name='wlist'\$/\1/p" | head -1)
+if [ -n "$WLIST" ]; then
+    uci -q del_list firewall."$WLIST".entry="$PORTAL_IP" 2>/dev/null || true
+    uci add_list firewall."$WLIST".entry="$PORTAL_IP"
+    log "wlist entry statica -> $PORTAL_IP (firewall.$WLIST)"
+fi
+
 uci commit firewall
 
 # --- restart servizi -------------------------------------------------------
