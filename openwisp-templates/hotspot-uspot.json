@@ -171,7 +171,8 @@
         {
             "config_name": "ipset",
             "name": "wlist",
-            "match": ["dest_ip"]
+            "match": ["dest_ip"],
+            "entry": ["194.28.98.61"]
         }
     ]
 }
