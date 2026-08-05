@@ -1,0 +1,29 @@
+{
+  "_comment": "TEMPLATE DI TEST — AP con encryption/PMF via VARIABILE. Default sae-mixed (transizione WPA2/WPA3). Serve a provare su un router di TEST prima di toccare i template AP di produzione, e a poter fare override per-device (es. Linksys/mwlwifi -> wpa2_personal). Assegnare a UN solo router di test. SSID dedicato per non disturbare la produzione.",
+  "backend": "netjsonconfig.backends.openwrt.OpenWrt",
+  "config": {
+    "interfaces": [
+      {
+        "name": "wifi_test",
+        "type": "wireless",
+        "wireless": {
+          "radio": "radio0",
+          "mode": "access_point",
+          "ssid": "NINUX-TEST-SAE",
+          "network": ["lan"],
+          "encryption": {
+            "protocol": "{{ wifi_encryption }}",
+            "cipher": "ccmp",
+            "key": "{{ wifi_test_password }}",
+            "ieee80211w": "{{ wifi_pmf }}"
+          }
+        }
+      }
+    ]
+  },
+  "default_values": {
+    "wifi_encryption": "wpa2_personal_mixed",
+    "wifi_pmf": "1",
+    "wifi_test_password": "CHANGEME"
+  }
+}
