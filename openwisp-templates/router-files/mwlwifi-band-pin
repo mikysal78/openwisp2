@@ -1,0 +1,27 @@
+#!/bin/sh
+# WRT3200ACM/mwlwifi: le due radio 88W8964 ricevono la banda in modo NON
+# deterministico tra un boot e l'altro. radio0 (hotspot+mesh 2.4GHz) e' pinnata
+# per PCI-path, ma se quel path questo boot e' salito a 5GHz -> setup fallisce
+# (band.ht_capa null) e la radio resta giu'. Questo script trova il phy mwlwifi
+# che ESPONE la 2.4GHz e ci pinna radio0.path; ricarica il wifi solo se cambia.
+target=""
+for phy in /sys/class/ieee80211/phy*; do
+    [ -e "$phy/device/driver" ] || continue
+    [ "$(basename "$(readlink -f "$phy/device/driver")")" = "mwlwifi" ] || continue
+    pn=$(basename "$phy")
+    iw phy "$pn" info 2>/dev/null | grep -qE "2412(\.0)? MHz" || continue
+    pci=$(basename "$(readlink -f "$phy/device")")   # es. 0000:02:00.0
+    slot=$(echo "$pci" | cut -d: -f2)                # es. 02
+    target="soc/soc:pcie/pci0000:00/0000:00:${slot}.0/${pci}"
+    break
+done
+[ -n "$target" ] || { logger -t mwlwifi-pin "nessun phy mwlwifi con 2.4GHz"; exit 0; }
+cur=$(uci -q get wireless.radio0.path)
+if [ "$cur" != "$target" ]; then
+    uci set wireless.radio0.path="$target"
+    uci commit wireless
+    logger -t mwlwifi-pin "radio0.path -> $target (era $cur), reload wifi"
+    wifi reload
+else
+    logger -t mwlwifi-pin "radio0.path gia' corretto ($target)"
+fi

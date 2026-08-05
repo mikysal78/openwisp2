@@ -1,0 +1,5 @@
+#!/bin/sh /etc/rc.common
+START=99
+boot() {
+    ( sleep 20; /usr/sbin/mwlwifi-band-pin ) &
+}
