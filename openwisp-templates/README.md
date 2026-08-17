@@ -132,6 +132,26 @@ Prerequisiti pacchetti (nel firmware o via opkg):
 - uspot: `uspot` + `uhttpd-mod-ucode` (gli handler in `/usr/share/uspot/` sono
   inclusi nel pacchetto)
 
+### Captive in HTTPS (uam3990) — obbligatorio per evitare mixed-content
+
+Le wifi-login-pages girano in HTTPS: un submit del form verso un endpoint
+`http://<ip>:3990` viene bloccato dal browser (mixed content) e il login non
+parte. Per questo `hotspot-uspot.json` serve il portale UAM in **HTTPS** su un
+**dominio**, non su IP:
+
+- `uhttpd.uam3990`: `listen_https 192.168.182.1:3990` + `cert`/`key`
+  (`/etc/uspot/wifiauth.crt` e `.key`)
+- `uspot.captive.uam_sslurl = https://wifiauth.ninux-nnxx.it:3990/`
+- split-DNS: `wifiauth.ninux-nnxx.it → 192.168.182.1` (uci-defaults
+  `96-hotspot-splitdns`, idempotente) così il dominio del cert risolve
+  sull'IP locale del captive
+
+**Certificato**: il template distribuisce il wildcard `*.ninux-nnxx.it`
+(Let's Encrypt) come file `files[]`. ⚠️ Nel repo i due file
+`/etc/uspot/wifiauth.{crt,key}` hanno **solo un placeholder**: il contenuto
+reale (chiave privata inclusa) **non è versionato in git**, vive solo nel DB
+del controller OpenWISP. Al rinnovo del cert va riaggiornato lì.
+
 ### Lato wifi-login-pages (org `default`)
 
 Nel file organizzazione (`owlp_organizations/default.yml`) il form del captive
