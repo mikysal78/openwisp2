@@ -26,7 +26,7 @@
             "name": "radio0",
             "phy": "phy0",
             "driver": "mac80211",
-            "protocol": "802.11n",
+            "protocol": "802.11ax",
             "channel": 1,
             "channel_width": 20,
             "country": "IT",
