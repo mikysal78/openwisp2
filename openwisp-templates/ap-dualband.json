@@ -13,10 +13,10 @@
                     "lan"
                 ],
                 "encryption": {
-                    "protocol": "wpa3_personal",
+                    "protocol": "{{ wifi_encryption }}",
                     "cipher": "ccmp",
                     "key": "{{ wifi_password }}",
-                    "ieee80211w": "2"
+                    "ieee80211w": "{{ wifi_pmf }}"
                 }
             }
         },
@@ -33,10 +33,10 @@
                     "lan"
                 ],
                 "encryption": {
-                    "protocol": "wpa3_personal",
+                    "protocol": "{{ wifi_encryption }}",
                     "cipher": "ccmp",
                     "key": "{{ wifi_password }}",
-                    "ieee80211w": "2"
+                    "ieee80211w": "{{ wifi_pmf }}"
                 }
             }
         }
