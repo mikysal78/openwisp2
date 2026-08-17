@@ -23,7 +23,9 @@
                 "mode": "access_point",
                 "ssid": "NINUX Free WiFi",
                 "isolate": true,
-                "network": ["captive"]
+                "network": [
+                    "captive"
+                ]
             }
         }
     ],
@@ -45,14 +47,17 @@
             "uam_server": "https://wifi.ninux-nnxx.it/basilicata/",
             "nasid": "{{ name }}",
             "nasmac": "{{ mac_address }}",
-            "idle_timeout": "600"
+            "idle_timeout": "600",
+            "uam_sslurl": "https://wifiauth.ninux-nnxx.it:3990/"
         }
     ],
     "uhttpd": [
         {
             "config_name": "uhttpd",
             "config_value": "uspot",
-            "listen_http": ["192.168.182.1:8080"],
+            "listen_http": [
+                "192.168.182.1:8080"
+            ],
             "redirect_https": "0",
             "max_requests": "5",
             "no_dirlists": "1",
@@ -66,7 +71,6 @@
         {
             "config_name": "uhttpd",
             "config_value": "uam3990",
-            "listen_http": ["192.168.182.1:3990"],
             "redirect_https": "0",
             "max_requests": "5",
             "no_dirlists": "1",
@@ -75,7 +79,12 @@
                 "/logon=/usr/share/uspot/handler-uam.uc",
                 "/logoff=/usr/share/uspot/handler-uam.uc",
                 "/logout=/usr/share/uspot/handler-uam.uc"
-            ]
+            ],
+            "listen_https": [
+                "192.168.182.1:3990"
+            ],
+            "cert": "/etc/uspot/wifiauth.crt",
+            "key": "/etc/uspot/wifiauth.key"
         }
     ],
     "dhcp": [
@@ -89,8 +98,12 @@
         },
         {
             "config_name": "ipset",
-            "name": ["wlist"],
-            "domain": ["wifi.ninux-nnxx.it"]
+            "name": [
+                "wlist"
+            ],
+            "domain": [
+                "wifi.ninux-nnxx.it"
+            ]
         }
     ],
     "firewall": [
@@ -98,7 +111,9 @@
             "config_name": "zone",
             "config_value": "captive",
             "name": "captive",
-            "network": ["captive"],
+            "network": [
+                "captive"
+            ],
             "input": "REJECT",
             "output": "ACCEPT",
             "forward": "REJECT"
@@ -141,7 +156,10 @@
             "config_name": "rule",
             "name": "Allow-DNS-captive",
             "src": "captive",
-            "proto": ["udp", "tcp"],
+            "proto": [
+                "udp",
+                "tcp"
+            ],
             "dest_port": "53",
             "target": "ACCEPT"
         },
@@ -166,21 +184,42 @@
         {
             "config_name": "ipset",
             "name": "uspot",
-            "match": ["src_mac"]
+            "match": [
+                "src_mac"
+            ]
         },
         {
             "config_name": "ipset",
             "name": "wlist",
-            "match": ["dest_ip"],
-            "entry": ["194.28.98.61"]
+            "match": [
+                "dest_ip"
+            ],
+            "entry": [
+                "194.28.98.61"
+            ]
         }
     ],
     "files": [
         {
-            "_comment": "Dizionario radcli mancante nel firmware (libradcli non lo installa; il Makefile uspot non installa le VSA WISPr/ChilliSpot). Senza questo file uspot-radius fallisce con 'couldn\u0027t open dictionary' / 'Failed to lookup attribute key 23' (WISPr-Logoff-URL) e NESSUNA Access-Request/Accounting viene inviata -> login captive impossibile. Contiene: dizionario stock radcli 1.3.0 + VSA WISPr(14122) + ChilliSpot(14559).",
+            "_comment": "Dizionario radcli mancante nel firmware (libradcli non lo installa; il Makefile uspot non installa le VSA WISPr/ChilliSpot). Senza questo file uspot-radius fallisce con 'couldn't open dictionary' / 'Failed to lookup attribute key 23' (WISPr-Logoff-URL) e NESSUNA Access-Request/Accounting viene inviata -> login captive impossibile. Contiene: dizionario stock radcli 1.3.0 + VSA WISPr(14122) + ChilliSpot(14559).",
             "path": "/etc/radcli/dictionary",
             "mode": "0644",
             "contents": "#\n# Updated 97/06/13 to livingston-radius-2.01 miquels@cistron.nl\n#\n#\tThis file contains dictionary translations for parsing\n#\trequests and generating responses.  All transactions are\n#\tcomposed of Attribute/Value Pairs.  The value of each attribute\n#\tis specified as one of 4 data types.  Valid data types are:\n#\n#\tstring - 0-253 octets\n#\tipv4addr- 4 octets in network byte order\n#\tipv6addr  - 16 octets in network byte order\n#\tipv6prefix- up to 16 octets in network byte order, plus prefix length\n#\tinteger - 32 bit value in big endian order (high byte first)\n#\tdate - 32 bit value in big endian order - seconds since\n#\t\t\t\t\t00:00:00 GMT,  Jan.  1,  1970\n#\n#\tEnumerated values are stored in the user file with dictionary\n#\tVALUE translations for easy administration.\n#\n#\tExample:\n#\n#\tATTRIBUTE\t  VALUE\n#\t---------------   -----\n#\tFramed-Protocol = PPP\n#\t7\t\t= 1\t(integer encoding)\n#\n\n#\n#\tFollowing are the proper new names. Use these.\n#\nATTRIBUTE\tUser-Name\t\t1\tstring\nATTRIBUTE\tPassword\t\t2\tstring\nATTRIBUTE\tCHAP-Password\t\t3\tstring\nATTRIBUTE\tNAS-IP-Address\t\t4\tipv4addr\nATTRIBUTE\tNAS-Port-Id\t\t5\tinteger\nATTRIBUTE\tService-Type\t\t6\tinteger\nATTRIBUTE\tFramed-Protocol\t\t7\tinteger\nATTRIBUTE\tFramed-IP-Address\t8\tipv4addr\nATTRIBUTE\tFramed-IP-Netmask\t9\tipv4addr\nATTRIBUTE\tFramed-Routing\t\t10\tinteger\nATTRIBUTE\tFilter-Id\t\t11\tstring\nATTRIBUTE\tFramed-MTU\t\t12\tinteger\nATTRIBUTE\tFramed-Compression\t13\tinteger\nATTRIBUTE\tLogin-IP-Host\t\t14\tipv4addr\nATTRIBUTE\tLogin-Service\t\t15\tinteger\nATTRIBUTE\tLogin-TCP-Port\t\t16\tinteger\nATTRIBUTE\tReply-Message\t\t18\tstring\nATTRIBUTE\tCallback-Number\t\t19\tstring\nATTRIBUTE\tCallback-Id\t\t20\tstring\nATTRIBUTE\tFramed-Route\t\t22\tstring\nATTRIBUTE\tFramed-IPX-Network\t23\tipv4addr\nATTRIBUTE\tState\t\t\t24\tstring\nATTRIBUTE\tClass\t\t\t25\tstring\nATTRIBUTE\tVendor-Specific\t\t26\tstring\nATTRIBUTE\tSession-Timeout\t\t27\tinteger\nATTRIBUTE\tIdle-Timeout\t\t28\tinteger\nATTRIBUTE\tTermination-Action\t29\tinteger\nATTRIBUTE\tCalled-Station-Id\t30\tstring\nATTRIBUTE\tCalling-Station-Id\t31\tstring\nATTRIBUTE\tNAS-Identifier\t\t32\tstring\nATTRIBUTE\tProxy-State\t\t33\tstring\nATTRIBUTE\tLogin-LAT-Service\t34\tstring\nATTRIBUTE\tLogin-LAT-Node\t\t35\tstring\nATTRIBUTE\tLogin-LAT-Group\t\t36\tstring\nATTRIBUTE\tFramed-AppleTalk-Link\t37\tinteger\nATTRIBUTE\tFramed-AppleTalk-Network\t38\tinteger\nATTRIBUTE\tFramed-AppleTalk-Zone\t39\tstring\nATTRIBUTE\tAcct-Status-Type\t40\tinteger\nATTRIBUTE\tAcct-Delay-Time\t\t41\tinteger\nATTRIBUTE\tAcct-Input-Octets\t42\tinteger\nATTRIBUTE\tAcct-Output-Octets\t43\tinteger\nATTRIBUTE\tAcct-Session-Id\t\t44\tstring\nATTRIBUTE\tAcct-Authentic\t\t45\tinteger\nATTRIBUTE\tAcct-Session-Time\t46\tinteger\nATTRIBUTE\tAcct-Input-Packets\t47\tinteger\nATTRIBUTE\tAcct-Output-Packets\t48\tinteger\nATTRIBUTE\tAcct-Terminate-Cause\t49\tinteger\nATTRIBUTE\tAcct-Multi-Session-Id\t50\tstring\nATTRIBUTE\tAcct-Link-Count\t\t51\tinteger\nATTRIBUTE\tAcct-Input-Gigawords\t52\tinteger\nATTRIBUTE\tAcct-Output-Gigawords\t53\tinteger\nATTRIBUTE\tEvent-Timestamp\t\t55\tinteger\nATTRIBUTE\tEgress-VLANID\t\t56\tstring\nATTRIBUTE\tIngress-Filters\t\t57\tinteger\nATTRIBUTE\tEgress-VLAN-Name\t58\tstring\nATTRIBUTE\tUser-Priority-Table\t59\tstring\nATTRIBUTE\tCHAP-Challenge\t\t60\tstring\nATTRIBUTE\tNAS-Port-Type\t\t61\tinteger\nATTRIBUTE\tPort-Limit\t\t62\tinteger\nATTRIBUTE\tLogin-LAT-Port\t\t63\tinteger\nATTRIBUTE\tTunnel-Type\t\t64\tstring\nATTRIBUTE\tTunnel-Medium-Type\t65\tstring\nATTRIBUTE\tTunnel-Client-Endpoint\t66\tstring\nATTRIBUTE\tTunnel-Server-Endpoint\t67\tstring\nATTRIBUTE\tAcct-Tunnel-Connection\t68\tstring\nATTRIBUTE\tTunnel-Password\t\t69\tstring\nATTRIBUTE\tARAP-Password\t\t70\tstring\nATTRIBUTE\tARAP-Features\t\t71\tstring\nATTRIBUTE\tARAP-Zone-Access\t72\tinteger\nATTRIBUTE\tARAP-Security\t\t73\tinteger\nATTRIBUTE\tARAP-Security-Data\t74\tstring\nATTRIBUTE\tPassword-Retry\t\t75\tinteger\nATTRIBUTE\tPrompt\t\t\t76\tinteger\nATTRIBUTE\tConnect-Info\t\t77\tstring\nATTRIBUTE\tConfiguration-Token\t78\tstring\nATTRIBUTE\tEAP-Message\t\t79\tstring\nATTRIBUTE\tMessage-Authenticator\t80\tstring\nATTRIBUTE\tTunnel-Private-Group-ID\t81\tstring\nATTRIBUTE\tTunnel-Assignment-ID\t82\tstring\nATTRIBUTE\tTunnel-Preference\t83\tstring\nATTRIBUTE\tARAP-Challenge-Response\t84\tstring\nATTRIBUTE\tAcct-Interim-Interval\t85\tinteger\nATTRIBUTE\tAcct-Tunnel-Packets-Lost\t86\tinteger\nATTRIBUTE\tNAS-Port-Id-String\t87\tstring\nATTRIBUTE\tFramed-Pool\t\t88\tstring\nATTRIBUTE\tChargeable-User-Identity\t89\tstring\nATTRIBUTE\tTunnel-Client-Auth-ID\t90\tstring\nATTRIBUTE\tTunnel-Server-Auth-ID\t91\tstring\nATTRIBUTE\tNAS-Filter-Rule\t\t92\tstring\nATTRIBUTE\tOriginating-Line-Info\t94\tstring\nATTRIBUTE\tNAS-IPv6-Address\t95\tipv6addr\nATTRIBUTE\tFramed-Interface-Id\t96\tstring\nATTRIBUTE\tFramed-IPv6-Prefix\t97\tipv6prefix\nATTRIBUTE\tLogin-IPv6-Host\t\t98\tipv6addr\nATTRIBUTE\tFramed-IPv6-Route\t99\tstring\nATTRIBUTE\tFramed-IPv6-Pool\t100\tstring\nATTRIBUTE\tError-Cause\t\t101\tinteger\nATTRIBUTE\tEAP-Key-Name\t\t102\tstring\n\n#\n#\tRFC6911 IPv6 attributes\n#\nATTRIBUTE       Delegated-IPv6-Prefix   123     ipv6prefix\nATTRIBUTE\tFramed-IPv6-Address\t168\tipv6addr\nATTRIBUTE\tDNS-Server-IPv6-Address\t169\tipv6addr\nATTRIBUTE\tRoute-IPv6-Information\t170\tipv6prefix\n\nATTRIBUTE\tHuntgroup-Name\t\t221\tstring\n#\n#\tNon-Protocol Attributes\n#\tThese attributes are used internally by the server\n#\nATTRIBUTE\tExpiration\t\t  21\tdate\nATTRIBUTE\tAuth-Type\t\t1000\tinteger\nATTRIBUTE\tMenu\t\t\t1001\tstring\nATTRIBUTE\tTermination-Menu\t1002\tstring\nATTRIBUTE\tPrefix\t\t\t1003\tstring\nATTRIBUTE\tSuffix\t\t\t1004\tstring\nATTRIBUTE\tGroup\t\t\t1005\tstring\nATTRIBUTE\tCrypt-Password\t\t1006\tstring\nATTRIBUTE\tConnect-Rate\t\t1007\tinteger\nATTRIBUTE\tUser-Category\t\t1029\tstring\nATTRIBUTE\tGroup-Name\t\t1030\tstring\nATTRIBUTE\tSimultaneous-Use\t1034\tinteger\nATTRIBUTE\tStrip-User-Name\t\t1035\tinteger\nATTRIBUTE\tFall-Through\t\t1036\tinteger\nATTRIBUTE\tAdd-Port-To-IP-Address\t1037\tinteger\nATTRIBUTE\tExec-Program\t\t1038\tstring\nATTRIBUTE\tExec-Program-Wait\t1039\tstring\nATTRIBUTE\tHint\t\t\t1040\tstring\n\n\n#\n#\tInteger Translations\n#\n\n#\tUser Types\n\nVALUE\t\tService-Type\t\tLogin-User\t\t1\nVALUE\t\tService-Type\t\tFramed-User\t\t2\nVALUE\t\tService-Type\t\tCallback-Login-User\t3\nVALUE\t\tService-Type\t\tCallback-Framed-User\t4\nVALUE\t\tService-Type\t\tOutbound-User\t\t5\nVALUE\t\tService-Type\t\tAdministrative-User\t6\nVALUE\t\tService-Type\t\tNAS-Prompt-User\t\t7\nVALUE\t\tService-Type\t\tAuthenticate-Only\t8\nVALUE\t\tService-Type\t\tCallback-NAS-Prompt\t9\nVALUE\t\tService-Type\t\tCall-Check\t\t10\nVALUE\t\tService-Type\t\tCallback-Administrative\t11\n\n#\tFramed Protocols\n\nVALUE\t\tFramed-Protocol\t\tPPP\t\t\t1\nVALUE\t\tFramed-Protocol\t\tSLIP\t\t\t2\nVALUE\t\tFramed-Protocol\t\tARAP\t\t\t3\nVALUE\t\tFramed-Protocol\t\tGANDALF-SLMLP\t\t4\nVALUE\t\tFramed-Protocol\t\tXYLOGICS-IPX-SLIP\t5\nVALUE\t\tFramed-Protocol\t\tX75\t\t\t6\n\n#\tFramed Routing Values\n\nVALUE\t\tFramed-Routing\t\tNone\t\t\t0\nVALUE\t\tFramed-Routing\t\tBroadcast\t\t1\nVALUE\t\tFramed-Routing\t\tListen\t\t\t2\nVALUE\t\tFramed-Routing\t\tBroadcast-Listen\t3\n\n#\tFramed Compression Types\n\nVALUE\t\tFramed-Compression\tNone\t\t\t0\nVALUE\t\tFramed-Compression\tVan-Jacobson-TCP-IP\t1\nVALUE\t\tFramed-Compression\tIPX-Header\t\t2\nVALUE\t\tFramed-Compression\tStac-LZS\t\t3\n\n#\tLogin Services\n\nVALUE\t\tLogin-Service\t\tTelnet\t\t\t0\nVALUE\t\tLogin-Service\t\tRlogin\t\t\t1\nVALUE\t\tLogin-Service\t\tTCP-Clear\t\t2\nVALUE\t\tLogin-Service\t\tPortMaster\t\t3\nVALUE\t\tLogin-Service\t\tLAT\t\t\t4\nVALUE\t\tLogin-Service\t\tX.25-PAD\t\t5\nVALUE\t\tLogin-Service\t\tX.25-T3POS\t\t6\nVALUE\t\tLogin-Service\t\tTCP-Clear-Quiet\t\t8\n\n#\tStatus Types\n\nVALUE\t\tAcct-Status-Type\tStart\t\t\t1\nVALUE\t\tAcct-Status-Type\tStop\t\t\t2\nVALUE\t\tAcct-Status-Type\tAlive\t\t\t3\nVALUE\t\tAcct-Status-Type\tAccounting-On\t\t7\nVALUE\t\tAcct-Status-Type\tAccounting-Off\t\t8\n\n#\tAuthentication Types\n\nVALUE\t\tAcct-Authentic\t\tRADIUS\t\t\t1\nVALUE\t\tAcct-Authentic\t\tLocal\t\t\t2\nVALUE\t\tAcct-Authentic\t\tRemote\t\t\t3\n\n#\tTermination Options\n\nVALUE\t\tTermination-Action\tDefault\t\t\t0\nVALUE\t\tTermination-Action\tRADIUS-Request\t\t1\n\n#\tNAS Port Types, available in 3.3.1 and later\n\nVALUE\t\tNAS-Port-Type\t\tAsync\t\t\t0\nVALUE\t\tNAS-Port-Type\t\tSync\t\t\t1\nVALUE\t\tNAS-Port-Type\t\tISDN\t\t\t2\nVALUE\t\tNAS-Port-Type\t\tISDN-V120\t\t3\nVALUE\t\tNAS-Port-Type\t\tISDN-V110\t\t4\nVALUE\t\tNAS-Port-Type\t\tVirtual\t\t\t5\nVALUE\t\tNAS-Port-Type\t\tPIAFS\t\t\t6\nVALUE\t\tNAS-Port-Type\t\tHDLC-Clear-Channel\t7\nVALUE\t\tNAS-Port-Type\t\tX.25\t\t\t8\nVALUE\t\tNAS-Port-Type\t\tX.75\t\t\t9\nVALUE\t\tNAS-Port-Type\t\tG.3-Fax\t\t\t10\nVALUE\t\tNAS-Port-Type\t\tSDSL\t\t\t11\nVALUE\t\tNAS-Port-Type\t\tADSL-CAP\t\t12\nVALUE\t\tNAS-Port-Type\t\tADSL-DMT\t\t13\nVALUE\t\tNAS-Port-Type\t\tIDSL\t\t\t14\nVALUE\t\tNAS-Port-Type\t\tEthernet\t\t15\n\n#\tAcct Terminate Causes, available in 3.3.2 and later\n\nVALUE           Acct-Terminate-Cause    User-Request            1\nVALUE           Acct-Terminate-Cause    Lost-Carrier            2\nVALUE           Acct-Terminate-Cause    Lost-Service            3\nVALUE           Acct-Terminate-Cause    Idle-Timeout            4\nVALUE           Acct-Terminate-Cause    Session-Timeout         5\nVALUE           Acct-Terminate-Cause    Admin-Reset             6\nVALUE           Acct-Terminate-Cause    Admin-Reboot            7\nVALUE           Acct-Terminate-Cause    Port-Error              8\nVALUE           Acct-Terminate-Cause    NAS-Error               9\nVALUE           Acct-Terminate-Cause    NAS-Request             10\nVALUE           Acct-Terminate-Cause    NAS-Reboot              11\nVALUE           Acct-Terminate-Cause    Port-Unneeded           12\nVALUE           Acct-Terminate-Cause    Port-Preempted          13\nVALUE           Acct-Terminate-Cause    Port-Suspended          14\nVALUE           Acct-Terminate-Cause    Service-Unavailable     15\nVALUE           Acct-Terminate-Cause    Callback                16\nVALUE           Acct-Terminate-Cause    User-Error              17\nVALUE           Acct-Terminate-Cause    Host-Request            18\n\n#\n#\tNon-Protocol Integer Translations\n#\n\nVALUE\t\tAuth-Type\t\tLocal\t\t\t0\nVALUE\t\tAuth-Type\t\tSystem\t\t\t1\nVALUE\t\tAuth-Type\t\tSecurID\t\t\t2\nVALUE\t\tAuth-Type\t\tCrypt-Local\t\t3\nVALUE\t\tAuth-Type\t\tReject\t\t\t4\n\n#\n#\tCistron extensions\n#\nVALUE\t\tAuth-Type\t\tPam\t\t\t253\nVALUE\t\tAuth-Type\t\tAccept\t\t\t254\n\n#\n#\tExperimental Non-Protocol Integer Translations for Cistron-Radiusd\n#\nVALUE\t\tFall-Through\t\tNo\t\t\t0\nVALUE\t\tFall-Through\t\tYes\t\t\t1\nVALUE\t\tAdd-Port-To-IP-Address\tNo\t\t\t0\nVALUE\t\tAdd-Port-To-IP-Address\tYes\t\t\t1\n\n#\n#\tConfiguration Values\n#\tuncomment these two lines to turn account expiration on\n#\n\n#VALUE\t\tServer-Config\t\tPassword-Expiration\t30\n#VALUE\t\tServer-Config\t\tPassword-Warning\t5\n\n#$INCLUDE /etc/radcli/dictionary.microsoft\n#$INCLUDE /etc/radcli/dictionary.roaringpenguin\n\n\n#\n# --- uspot VSA: WISPr (WBAL 14122) ---\n\nVENDOR\t\tWISPr\t14122\tWISPr\n\nATTRIBUTE\tWISPr-Location-ID\t\t\t1\tstring\tWISPr\nATTRIBUTE\tWISPr-Location-Name\t\t\t2\tstring\tWISPr\nATTRIBUTE\tWISPr-Logoff-URL\t\t\t3\tstring\tWISPr\nATTRIBUTE\tWISPr-Redirection-URL\t\t\t4\tstring\tWISPr\nATTRIBUTE\tWISPr-Bandwidth-Min-Up\t\t\t5\tinteger\tWISPr\nATTRIBUTE\tWISPr-Bandwidth-Min-Down\t\t6\tinteger\tWISPr\nATTRIBUTE\tWISPr-Bandwidth-Max-Up\t\t\t7\tinteger\tWISPr\nATTRIBUTE\tWISPr-Bandwidth-Max-Down\t\t8\tinteger\tWISPr\nATTRIBUTE\tWISPr-Session-Terminate-Time\t\t9\tstring\tWISPr\nATTRIBUTE\tWISPr-Billing-Class-Of-Service\t\t11\tstring\tWISPr\n\n# --- uspot VSA: ChilliSpot (14559) ---\nVENDOR\tChilliSpot\t14559 ChilliSpot\n\nATTRIBUTE\tChilliSpot-Max-Input-Octets\t\t1\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Max-Output-Octets\t\t2\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Max-Total-Octets\t\t3\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Bandwidth-Max-Up\t\t4\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Bandwidth-Max-Down\t\t5\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Config\t\t\t6\tstring\tChilliSpot\nATTRIBUTE\tChilliSpot-Lang\t\t\t\t7\tstring\tChilliSpot\nATTRIBUTE\tChilliSpot-Version\t\t\t8\tstring\tChilliSpot\nATTRIBUTE\tChilliSpot-OriginalURL\t\t\t9\tstring\tChilliSpot\nATTRIBUTE\tChilliSpot-Max-Input-Gigawords\t\t21\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Max-Output-Gigawords\t\t22\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-Max-Total-Gigawords\t\t23\tinteger\tChilliSpot\nATTRIBUTE\tChilliSpot-UAM-Allowed\t\t\t100\tstring ChilliSpot\nATTRIBUTE\tChilliSpot-MAC-Allowed\t\t\t101\tstring ChilliSpot\nATTRIBUTE\tChilliSpot-Interval\t\t\t102\tinteger ChilliSpot\n"
+        },
+        {
+            "path": "/etc/uci-defaults/96-hotspot-splitdns",
+            "mode": "0755",
+            "contents": "#!/bin/sh\n# Split-DNS: wifiauth.ninux-nnxx.it -> IP locale del captive (idempotente)\nS=dhcp.dnsmasq1\nuci -q get $S >/dev/null 2>&1 || S=dhcp.@dnsmasq[0]\nE=\"/wifiauth.ninux-nnxx.it/192.168.182.1\"\nuci -q get $S.address 2>/dev/null | grep -q \"$E\" || uci add_list $S.address=\"$E\"\nuci commit dhcp\n/etc/init.d/dnsmasq reload 2>/dev/null\nexit 0\n"
+        },
+        {
+            "path": "/etc/uspot/wifiauth.crt",
+            "mode": "0644",
+            "contents": "<<PROVISIONED-FROM-CONTROLLER-DB>> Il template live nel controller OpenWISP consegna qui il certificato wildcard *.ninux-nnxx.it (Let's Encrypt). Il contenuto reale (incl. chiave privata) NON e versionato in git: vive solo nel DB del controller. Vedi README."
+        },
+        {
+            "path": "/etc/uspot/wifiauth.key",
+            "mode": "0600",
+            "contents": "<<PROVISIONED-FROM-CONTROLLER-DB>> Il template live nel controller OpenWISP consegna qui il certificato wildcard *.ninux-nnxx.it (Let's Encrypt). Il contenuto reale (incl. chiave privata) NON e versionato in git: vive solo nel DB del controller. Vedi README."
         }
     ]
 }
