@@ -136,10 +136,11 @@ identico.
 
 Il play `firewall` (nftables) applica una policy **default drop** in ingresso.
 Niente NAT: OpenWISP non fa da gateway; il forward è permesso **solo**
-`owzt* → owzt*` (traffico router↔router attraverso l'hub).
+`zt* → zt*` (traffico router↔router attraverso l'hub; sul server l'interfaccia
+ZeroTier è `zt<id>`, sui router `owzt<id>`).
 
-Interfacce del CT: **eth0** = rete di gestione (10.27.22.18),
-**eth1** = IP pubblico (194.28.98.61 / 2a07:7e81:3f1c::18).
+Interfacce del CT: **ens18** = rete di gestione (10.27.22.18, 2a07:7e81:3f1c::18),
+**ens19** = IP pubblico (194.28.98.61/29), **zt<id>** = VPN ZeroTier (10.27.255.1).
 
 | Porta | Proto | Da | Servizio |
 |-------|-------|-----|----------|
@@ -147,30 +148,34 @@ Interfacce del CT: **eth0** = rete di gestione (10.27.22.18),
 | 80, 443 | TCP | ovunque | nginx (OpenWISP + WiFi Login Pages) |
 | 9993  | UDP   | ovunque | ZeroTier (controller + data plane) |
 | 1812–1813 | UDP | solo VPN (10.27.255.0/24) e gestione (10.27.0.0/16) | FreeRADIUS |
-| 6696  | UDP   | solo interfacce `owzt*` e `eth1` | Babel (bird2) |
+| 6696  | UDP   | solo interfacce `zt*`, `ens18` e `ens19` | Babel (bird2) |
 
 Il play si applica anche da solo con `--tags firewall`.
 
 ## 4e. bird2 / Babel (rete NINUX)
 
+> Il server usa `bird2` di Debian (2.17); i router, con il firmware Ninux su
+> OpenWrt 25.12, usano **BIRD 3** (3.2.x). La configurazione Babel è compatibile.
+
 Il play `bird` (tag omonimo) installa **bird2** e applica
 `templates/bird.conf.j2`, allineata alla config dei router NINUX:
 
-- **Babel** gira sulle interfacce `owzt*` (la VPN ZeroTier) e su `eth1`, con
+- **Babel** gira su `zt*` (la VPN ZeroTier), `ens18` (LAN di gestione, dove
+  peera con i router della stessa L2) e `ens19` (pubblica), con
   `check link yes` e `rxcost 600`
 - il protocollo **direct `vpn`** annuncia via Babel la subnet ZeroTier
-  (10.27.255.0/24) presa da `owzt*`
+  (10.27.255.0/24) presa da `zt*` e la LAN di gestione da `ens18`
 - come sui router, la **default route non viene mai né annunciata né importata**
   via Babel (filtri identici ai router: `net != 0.0.0.0/0` / `net != ::/0`):
   ogni nodo tiene il suo gateway
 - kernel4/kernel6 con `scan time 20`, `learn yes`, `merge paths yes`; il router
-  id è ricavato da `eth1`
+  id è ricavato da `ens19`
 
 La config viene validata con `bird -p` prima dell'applicazione.
 
-> NB: le `owzt*` esistono solo dopo che i primi device si sono registrati e
-> hanno joinato la rete ZeroTier; con `check link yes` bird le ignora finché
-> non compaiono, quindi il play si può lanciare anche prima.
+> NB: l'interfaccia `zt*` del server esiste solo dopo che la VPN è stata creata
+> in OpenWISP e il CT ha joinato la rete ZeroTier; con `check link yes` bird la
+> ignora finché non compare, quindi il play si può lanciare anche prima.
 
 ## 5. WiFi Login Pages
 
