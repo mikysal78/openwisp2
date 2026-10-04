@@ -267,6 +267,10 @@
 
     openwisp2_default_from_email: "openwisp@ninux-nnxx.it"
     openwisp2_email_host: "localhost"
+    # Stouts.postfix (dipendenza del ruolo) scrive in main.cf il booleano così
+    # com'è ("smtp_use_tls = True"), che postfix rifiuta: il client smtp esce
+    # con "bad boolean configuration" e nessuna mail parte. Serve la stringa.
+    postfix_smtp_use_tls: "yes"
 
     # ------------------------------------------------------------------
     # Installazione "full": abilita tutti i moduli
