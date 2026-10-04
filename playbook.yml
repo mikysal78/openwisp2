@@ -271,6 +271,16 @@
     # com'è ("smtp_use_tls = True"), che postfix rifiuta: il client smtp esce
     # con "bad boolean configuration" e nessuna mail parte. Serve la stringa.
     postfix_smtp_use_tls: "yes"
+    # Le mail escono dal mail server del dominio (autorizzato da SPF e con
+    # DKIM), autenticandosi come controller@: l'IP del CT non è nell'SPF di
+    # ninux-nnxx.it e Gmail le rifiuterebbe (550 5.7.26). Il mittente viene
+    # riscritto in controller@ anche per le mail di sistema (root, cron), perché
+    # il relay accetta solo l'indirizzo della casella autenticata.
+    postfix_smtp_sasl_auth_enable_override: true
+    postfix_relayhost: "[mail.ninux-nnxx.it]:587"
+    postfix_smtp_sasl_user: "controller@ninux-nnxx.it"
+    postfix_smtp_sasl_password: "{{ vault_smtp_password }}"
+    postfix_rewrite_sender_address: "controller@ninux-nnxx.it"
 
     # ------------------------------------------------------------------
     # Installazione "full": abilita tutti i moduli
