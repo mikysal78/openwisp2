@@ -265,7 +265,7 @@
     ninux_gateway: "10.27.22.5"
     ninux_gw_interface: "ens18"
 
-    openwisp2_default_from_email: "controller@ninux-nnxx.it"
+    openwisp2_default_from_email: "NINUX OpenWISP <controller@ninux-nnxx.it>"
     openwisp2_email_host: "localhost"
     # Stouts.postfix (dipendenza del ruolo) scrive in main.cf il booleano così
     # com'è ("smtp_use_tls = True"), che postfix rifiuta: il client smtp esce
