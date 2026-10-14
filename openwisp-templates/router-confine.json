@@ -1,5 +1,5 @@
 {
-  "_comment": "Template OpenWISP2: configurazione COMPLETA del router di confine NINUX (ReginaMargherita116, x86): WAN PPPoE (VLAN 835) + statica (VLAN 250), LAN br-lan con /29 pubblica 194.28.98.56/29, tunnel PPTP Serveperso con policy-routing (tabella 130 'servperso'), firewall completo (port forward, no-NAT /29; le zone VPN/mesh le crea il post-reload-hook del template Bird, default), anti-spoofing nftables, dnsmasq/odhcpd, banIP, uhttpd, AP 'Ninux Mesh AP', /etc/ppp/options.pptp senza MPPE (pppd 2.5 di OpenWrt 25.12.5 rifiuta la vecchia riga 'mppe required' e il server non offre MPPE) con holdoff 30. Serve a ricostruire il router su hardware nuovo: firmware Ninux x86 + template standard + questo. Credenziali PPPoE/PPTP e chiave dell'AP sono VARIABILI DEL DEVICE (confine_*: segreti senza default, il resto con default = valori attuali), non stanno nel template. Nomi delle porte (eth0..eth3) legati all'hardware attuale: su un altro PC vanno verificati. Backend=OpenWRT, Type=Generic. NON default: si assegna solo al router di confine.",
+  "_comment": "Template OpenWISP2: configurazione COMPLETA del router di confine NINUX (ReginaMargherita116, x86): WAN PPPoE (VLAN 835) + statica (VLAN 250), LAN br-lan con /29 pubblica 194.28.98.56/29, tunnel PPTP Serveperso con policy-routing (tabella 130 'servperso'), firewall completo (port forward, no-NAT /29; le zone VPN/mesh le crea il post-reload-hook del template Bird, default), anti-spoofing nftables, dnsmasq/odhcpd, banIP, uhttpd, AP 'Ninux Mesh AP', /etc/ppp/options.pptp senza MPPE (pppd 2.5 di OpenWrt 25.12.5 rifiuta la vecchia riga 'mppe required' e il server non offre MPPE) con holdoff 30, watchdog hardware ACPI WDAT (kmod-wdat-wdt nel firmware x86: /etc/modules.d/50-wdat-wdt lo carica, rc.local lo fa aprire a procd). Serve a ricostruire il router su hardware nuovo: firmware Ninux x86 + template standard + questo. Credenziali PPPoE/PPTP e chiave dell'AP sono VARIABILI DEL DEVICE (confine_*: segreti senza default, il resto con default = valori attuali), non stanno nel template. Nomi delle porte (eth0..eth3) legati all'hardware attuale: su un altro PC vanno verificati. Backend=OpenWRT, Type=Generic. NON default: si assegna solo al router di confine.",
   "backend": "netjsonconfig.OpenWrt",
   "config": {
     "network": [
@@ -913,24 +913,29 @@
         "contents": "#\n# reserved values\n#\n128\tprelocal\n255\tlocal\n254\tmain\n253\tdefault\n0\tunspec\n130\tservperso\n#\n# local\n#\n#1\tinr.ruhep\n"
       },
       {
-        "path": "/etc/rc.local",
-        "mode": "0755",
-        "contents": "# Put your custom commands here that should be executed once\n# the system init finished. By default this file does nothing.\n\n/usr/sbin/legacy-openwisp-monitoring\ntouch /etc/crontabs/root\n/etc/init.d/cron start\n\n/root/logs/cstate-limit.sh\nexit 0\n"
-      },
-      {
         "path": "/root/logs/cstate-limit.sh",
         "mode": "0755",
         "contents": "#!/bin/sh\n# Gemini Lake (J4125): gli stati C profondi causano blocchi completi del sistema.\n# Lascia attivi solo POLL, C1 e C1E.\nfor s in /sys/devices/system/cpu/cpu*/cpuidle/state*; do\n\tcase \"$(cat $s/name)\" in POLL|C1|C1E) ;; *) echo 1 > $s/disable ;; esac\ndone\nlogger -t cstate-limit \"stati C profondi disattivati\"\n"
       },
       {
-        "path": "/etc/sysupgrade.conf",
-        "mode": "0644",
-        "contents": "## This file contains files and directories that should\n## be preserved during an upgrade.\n\n# /etc/example.conf\n# /etc/openvpn/\n/root/logs/\n/etc/nftables.d/20-ninux-antispoof.nft\n/etc/ddns/ddns.key\n/usr/lib/ddns/update_nsupdate.sh\n"
-      },
-      {
         "path": "/etc/ppp/options.pptp",
         "mode": "0644",
         "contents": "noipdefault\nnoauth\nnobsdcomp\nnodeflate\nidle 0\n# pppd 2.5: sintassi upstream (equivale a: mppe required,no40,no56,stateless)\n# require-mppe-128  (il server Serveperso non offre MPPE: col firmware precedente il tunnel era gia in chiaro)\n# nomppe-40\nmaxfail 0\n# attesa tra un tentativo e l altro: con maxfail 0 senza holdoff pppd riprova ogni ~3 s e il provider puo bannare\nholdoff 30\n"
+      },
+      {
+        "path": "/etc/rc.local",
+        "mode": "0755",
+        "contents": "# Put your custom commands here that should be executed once\n# the system init finished. By default this file does nothing.\n\n/usr/sbin/legacy-openwisp-monitoring\ntouch /etc/crontabs/root\n/etc/init.d/cron start\n\n/root/logs/cstate-limit.sh\n# Watchdog WDAT: wdat_wdt si carica dopo l'ultimo tentativo di procd di aprire\n# /dev/watchdog; qui procd lo apre e lo tiene vivo (timeout 30 s, ping ogni 5 s)\n[ -c /dev/watchdog ] && ubus call system watchdog '{\"stop\": false}' >/dev/null\nexit 0\n"
+      },
+      {
+        "path": "/etc/sysupgrade.conf",
+        "mode": "0644",
+        "contents": "## This file contains files and directories that should\n## be preserved during an upgrade.\n\n# /etc/example.conf\n# /etc/openvpn/\n/root/logs/\n/etc/nftables.d/20-ninux-antispoof.nft\n/etc/ddns/ddns.key\n/usr/lib/ddns/update_nsupdate.sh\n/etc/ppp/options.pptp\n/etc/modules.d/50-wdat-wdt\n/etc/modules-boot.d/50-wdat-wdt\n"
+      },
+      {
+        "path": "/etc/modules.d/50-wdat-wdt",
+        "mode": "0644",
+        "contents": "wdat_wdt\n"
       }
     ]
   },
