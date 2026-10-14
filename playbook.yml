@@ -456,6 +456,31 @@
     firewall_radius_sources_v4:
       - "10.27.255.0/24"
       - "10.27.0.0/16"
+    # Raccolta log dei router (Play 5): syslog remoto + netconsole.
+    # Le porte devono combaciare con router_logs_*_port del Play 5.
+    # Il filtro è per IP sorgente e UDP si falsifica: lo spoofing da Internet
+    # va bloccato sul router di confine; qui si limitano sorgenti e frequenza.
+    firewall_router_logs_syslog_port: 514
+    firewall_router_logs_netconsole_port: 6666
+    # Via ZeroTier i router inviano con il proprio IP 10.27.255.x
+    firewall_router_logs_vpn_sources_v4:
+      - "10.27.255.0/24"
+    firewall_router_logs_lan_interfaces:
+      - "ens18"
+      - "ens19"
+    # 194.28.98.57: il router di confine (ReginaMargherita116) raggiunge il
+    # server sulla /29 pubblica e invia da lì, non da 10.27.x. Solo quell'IP,
+    # non tutta la /29 (lì ci sono le VM pubbliche).
+    firewall_router_logs_lan_sources_v4:
+      - "10.27.0.0/16"
+      - "194.28.98.57"
+    # netconsole solo dai router in debug (oggi il solo x86 ReginaMargherita116)
+    firewall_router_logs_netconsole_sources_v4:
+      - "194.28.98.57"
+      - "10.27.22.1"
+    # Per singola sorgente: basta per uno stack trace, ferma un flood
+    firewall_router_logs_rate: "200/second"
+    firewall_router_logs_burst: 2000
     # Interfacce su cui è ammesso Babel (deve combaciare con il play bird):
     # zt* (vicini ZeroTier) + ens19/ens18 (la LAN NINUX: ens18 ed ens19 sono
     # sullo stesso L2, i vicini Babel si vedono su entrambe).
@@ -565,3 +590,78 @@
       ansible.builtin.systemd:
         name: bird
         state: restarted
+
+# ============================================================================
+# Play 5 — Raccolta centrale dei log dei router (rsyslog)
+# I router inviano il syslog (template OpenWISP "Log remoto") e, quelli in debug,
+# netconsole: i log restano sul server anche quando il router si blocca e al
+# riavvio perde il buffer in RAM. Le porte vanno aperte nel Play 3.
+# ============================================================================
+- name: Raccolta log dei router (rsyslog)
+  hosts: openwisp2
+  become: "{{ become | default('yes') }}"
+  tags: router_logs
+  vars:
+    # Sul secondo disco, come InfluxDB
+    router_logs_dir: /opt/router-logs
+    router_logs_syslog_port: 514
+    router_logs_netconsole_port: 6666
+    router_logs_retention_days: 30
+    # Oltre questa dimensione il file ruota anche prima del giorno
+    router_logs_max_size: 50M
+
+  tasks:
+    - name: Installa rsyslog e logrotate
+      ansible.builtin.apt:
+        name:
+          - rsyslog
+          - logrotate
+        state: present
+
+    - name: Directory dei log dei router
+      ansible.builtin.file:
+        path: "{{ router_logs_dir }}"
+        state: directory
+        owner: root
+        group: adm
+        mode: "0750"
+
+    - name: Configurazione rsyslog per i router
+      ansible.builtin.template:
+        src: templates/rsyslog-router-logs.conf.j2
+        dest: /etc/rsyslog.d/30-router-logs.conf
+        mode: "0644"
+      notify: restart rsyslog
+
+    - name: Rotazione dei log dei router
+      ansible.builtin.template:
+        src: templates/logrotate-router-logs.j2
+        dest: /etc/logrotate-router-logs.conf
+        mode: "0644"
+
+    # La prima versione stava in /etc/logrotate.d (solo rotazione giornaliera)
+    - name: Rimuovi la vecchia configurazione di rotazione giornaliera
+      ansible.builtin.file:
+        path: /etc/logrotate.d/router-logs
+        state: absent
+
+    - name: Rotazione oraria dei log dei router (rispetta maxsize)
+      ansible.builtin.copy:
+        dest: /etc/cron.d/router-logs
+        mode: "0644"
+        content: |
+          # Gestito da Ansible (playbook openwisp2, Play 5): non modificare a mano
+          17 * * * * root /usr/sbin/logrotate --state /var/lib/logrotate/router-logs.status /etc/logrotate-router-logs.conf
+
+    - name: Abilita e avvia rsyslog
+      ansible.builtin.systemd:
+        name: rsyslog
+        enabled: true
+        state: started
+
+  handlers:
+    # Prima di riavviare si valida tutta la configurazione: con un errore
+    # rsyslog partirebbe ignorando le regole, anche quelle del server.
+    - name: restart rsyslog
+      ansible.builtin.shell: rsyslogd -N1 -f /etc/rsyslog.conf && systemctl restart rsyslog
+      changed_when: true

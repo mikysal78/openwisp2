@@ -5,6 +5,14 @@
 flush ruleset
 
 table inet filter {
+    # Sorgenti che inviano log ai router-logs: serve al limite di frequenza
+    set router_logs_rate {
+        type ipv4_addr
+        size 4096
+        flags dynamic,timeout
+        timeout 1m
+    }
+
     chain input {
         type filter hook input priority filter; policy drop;
 
@@ -20,6 +28,14 @@ table inet filter {
         udp dport {{ firewall_zerotier_port }} accept comment "ZeroTier (controller + data plane)"
 
         udp dport { 1812, 1813 } ip saddr { {{ firewall_radius_sources_v4 | join(', ') }} } accept comment "FreeRADIUS (solo VPN e rete di gestione)"
+        # Log dei router (rsyslog, Play 5). Prima il limite per sorgente (un
+        # flood riempirebbe /opt, dove sta anche InfluxDB), poi le sorgenti
+        # ammesse legate all'interfaccia. ens18/ens19 condividono l'L2, quindi
+        # la LAN si accetta da entrambe.
+        udp dport { {{ firewall_router_logs_syslog_port }}, {{ firewall_router_logs_netconsole_port }} } update @router_logs_rate { ip saddr limit rate over {{ firewall_router_logs_rate }} burst {{ firewall_router_logs_burst }} packets } counter drop comment "rsyslog: flood da una singola sorgente"
+        iifname "{{ firewall_vpn_interface }}" udp dport {{ firewall_router_logs_syslog_port }} ip saddr { {{ firewall_router_logs_vpn_sources_v4 | join(', ') }} } accept comment "rsyslog: syslog dei router via ZeroTier"
+        iifname { {{ firewall_router_logs_lan_interfaces | map('to_json') | join(', ') }} } udp dport {{ firewall_router_logs_syslog_port }} ip saddr { {{ firewall_router_logs_lan_sources_v4 | join(', ') }} } accept comment "rsyslog: syslog dei router dalla LAN NINUX"
+        iifname { {{ firewall_router_logs_lan_interfaces | map('to_json') | join(', ') }} } udp dport {{ firewall_router_logs_netconsole_port }} ip saddr { {{ firewall_router_logs_netconsole_sources_v4 | join(', ') }} } accept comment "rsyslog: netconsole solo dai router in debug"
 
 {% for iface in firewall_babel_interfaces %}
         iifname "{{ iface }}" udp dport 6696 accept comment "Babel (bird2)"

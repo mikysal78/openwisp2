@@ -1,0 +1,11 @@
+{
+  "_comment": "Template OpenWISP2: invia il syslog del router (logd: kernel + servizi) al server OpenWISP, che lo salva in /opt/router-logs/<hostname>/syslog.log (rsyslog, Play 5 del playbook). Serve a conservare i log anche quando il router si blocca e al riavvio perde il buffer in RAM. 10.27.255.1 e' l'IP ZeroTier del server, raggiungibile anche via mesh. Backend=OpenWRT, Type=Generic. Assegnabile 'enabled by default'.",
+  "backend": "netjsonconfig.OpenWrt",
+  "config": {
+    "general": {
+      "log_ip": "10.27.255.1",
+      "log_port": "514",
+      "log_proto": "udp"
+    }
+  }
+}

@@ -14,6 +14,7 @@ template dentro OpenWISP.
 | `ap-dualssid.json` | AP WiFi dual SSID 2.4+5GHz | no | no |
 | `hotspot-chilli.json` | Hotspot CoovaChilli 2.4GHz — **dismesso**, chilli non è più nel firmware | no | no |
 | `hotspot-uspot.json` | Hotspot uspot 2.4GHz | no | no |
+| `log-remoto.json` | Log remoto (syslog) — invia il syslog al server (`/opt/router-logs/<hostname>/`, Play 5) | sì | no |
 
 Il template **VPN ZeroTier (client)** non sta qui: lo genera OpenWISP
 dall'oggetto VPN ZeroTier (controller self-hosted sul CT OpenWISP, vedi il README
