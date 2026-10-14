@@ -76,21 +76,31 @@
       },
       {
         "config_name": "rule",
+        "config_value": "rule_ninux_main",
+        "dest": "{{ confine_ninux_net }}",
+        "lookup": "main",
+        "priority": "1"
+      },
+      {
+        "config_name": "rule",
         "config_value": "rule32",
         "lookup": "servperso",
-        "src": "{{ confine_extra_net }}"
+        "src": "{{ confine_extra_net }}",
+        "priority": "10"
       },
       {
         "config_name": "rule",
         "config_value": "rule33",
         "dest": "{{ confine_extra_net }}",
-        "lookup": "servperso"
+        "lookup": "servperso",
+        "priority": "12"
       },
       {
         "config_name": "rule",
         "config_value": "rule36",
         "lookup": "servperso",
-        "src": "{{ confine_public_net }}"
+        "src": "{{ confine_public_net }}",
+        "priority": "13"
       },
       {
         "config_name": "interface",
@@ -106,14 +116,6 @@
         "interface": "lan",
         "table": "servperso",
         "target": "{{ confine_lan_network }}"
-      },
-      {
-        "config_name": "route",
-        "config_value": "route6",
-        "gateway": "{{ confine_mesh_gw }}",
-        "interface": "mesh",
-        "table": "servperso",
-        "target": "{{ confine_ninux_net }}"
       }
     ],
     "firewall": [
@@ -962,7 +964,6 @@
     "confine_public6_prefix": "2a07:7e81:3f1c::/48",
     "confine_servperso_server": "nobgp.servperso.net",
     "confine_pve_gw": "10.27.22.5",
-    "confine_mesh_gw": "10.27.99.7",
     "confine_ninux_net": "10.27.0.0/16",
     "confine_extra_net": "62.3.50.38/31",
     "confine_ula_prefix": "fdd9:5aff:96d4::/48",
