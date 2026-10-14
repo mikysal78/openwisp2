@@ -76,10 +76,18 @@ protocol babel ninux {
         export where (source = RTS_DEVICE) || (source = RTS_BABEL) || (net != ::/0);
         import where (net != ::/0);
     };
+{# Cavo (ens18/ens19, LAN NINUX) = wired 96; VPN ZeroTier ({{ bird_vpn_interface }}) = 600,
+   come sui router (template OpenWISP Bird): Babel deve preferire il cavo alla radio
+   e alla VPN. #}
 {% for iface in bird_babel_interfaces %}
     interface "{{ iface }}" {
         check link yes;
+{% if iface == bird_vpn_interface %}
         rxcost 600;
+{% else %}
+        type wired;
+        rxcost 96;
+{% endif %}
     };
 {% endfor %}
 }
