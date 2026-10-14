@@ -1,0 +1,956 @@
+{
+  "_comment": "Template OpenWISP2: configurazione COMPLETA del router di confine NINUX (ReginaMargherita116, x86): WAN PPPoE (VLAN 835) + statica (VLAN 250), LAN br-lan con /29 pubblica 194.28.98.56/29, tunnel PPTP Serveperso con policy-routing (tabella 130 'servperso'), firewall completo (port forward, no-NAT /29; le zone VPN/mesh le crea il post-reload-hook del template Bird, default), anti-spoofing nftables, dnsmasq/odhcpd, banIP, uhttpd, AP 'Ninux Mesh AP'. Serve a ricostruire il router su hardware nuovo: firmware Ninux x86 + template standard + questo. Credenziali PPPoE/PPTP e chiave dell'AP sono VARIABILI DEL DEVICE (confine_*: segreti senza default, il resto con default = valori attuali), non stanno nel template. Nomi delle porte (eth0..eth3) legati all'hardware attuale: su un altro PC vanno verificati. Backend=OpenWRT, Type=Generic. NON default: si assegna solo al router di confine.",
+  "backend": "netjsonconfig.OpenWrt",
+  "config": {
+    "network": [
+      {
+        "config_name": "globals",
+        "config_value": "globals",
+        "ula_prefix": "{{ confine_ula_prefix }}",
+        "packet_steering": "1",
+        "dhcp_default_duid": "{{ confine_dhcp_duid }}"
+      },
+      {
+        "config_name": "device",
+        "config_value": "device1",
+        "name": "br-lan",
+        "ports": [
+          "{{ confine_lan_port1 }}",
+          "{{ confine_lan_port2 }}",
+          "{{ confine_lan_port3 }}"
+        ],
+        "type": "bridge"
+      },
+      {
+        "config_name": "interface",
+        "config_value": "lan",
+        "proto": "static",
+        "device": "br-lan",
+        "ipaddr": [
+          "{{ confine_lan_ip }}/{{ confine_lan_prefixlen }}"
+        ],
+        "ip6weight": "1",
+        "ip6assign": "64"
+      },
+      {
+        "config_name": "interface",
+        "config_value": "wan",
+        "proto": "pppoe",
+        "device": "{{ confine_wan_port }}.{{ confine_wan_vlan }}",
+        "username": "{{ confine_wan_username }}",
+        "password": "{{ confine_wan_password }}",
+        "ipv6": "auto"
+      },
+      {
+        "config_name": "interface",
+        "config_value": "wan2",
+        "proto": "static",
+        "device": "{{ confine_wan_port }}.{{ confine_wan2_vlan }}",
+        "ipaddr": "{{ confine_wan2_ipaddr }}",
+        "gateway": "{{ confine_wan2_gateway }}",
+        "defaultroute": "0",
+        "delegate": "0"
+      },
+      {
+        "config_name": "interface",
+        "config_value": "servperso",
+        "proto": "pptp",
+        "server": "{{ confine_servperso_server }}",
+        "username": "{{ confine_servperso_username }}",
+        "password": "{{ confine_servperso_password }}",
+        "ipv6": "auto",
+        "norelease": "1",
+        "mtu": "1450",
+        "peerdns": "0",
+        "ip4table": "servperso",
+        "ip6table": "servperso",
+        "multipath": "off"
+      },
+      {
+        "config_name": "route",
+        "config_value": "route3",
+        "gateway": "{{ confine_pve_gw }}",
+        "interface": "lan",
+        "table": "servperso",
+        "target": "{{ confine_extra_net }}"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule32",
+        "lookup": "servperso",
+        "src": "{{ confine_extra_net }}"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule33",
+        "dest": "{{ confine_extra_net }}",
+        "lookup": "servperso"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule36",
+        "lookup": "servperso",
+        "src": "{{ confine_public_net }}"
+      },
+      {
+        "config_name": "interface",
+        "config_value": "public29",
+        "proto": "static",
+        "device": "br-lan",
+        "ipaddr": "{{ confine_public_ip }}",
+        "netmask": "{{ confine_public_netmask }}"
+      },
+      {
+        "config_name": "route",
+        "config_value": "route5",
+        "interface": "lan",
+        "table": "servperso",
+        "target": "{{ confine_lan_network }}"
+      },
+      {
+        "config_name": "route",
+        "config_value": "route6",
+        "gateway": "{{ confine_mesh_gw }}",
+        "interface": "mesh",
+        "table": "servperso",
+        "target": "{{ confine_ninux_net }}"
+      }
+    ],
+    "firewall": [
+      {
+        "config_name": "defaults",
+        "config_value": "defaults",
+        "forward": "REJECT",
+        "input": "ACCEPT",
+        "output": "ACCEPT",
+        "synflood_protect": "1",
+        "flow_offloading": "1",
+        "flow_offloading_hw": "1"
+      },
+      {
+        "config_name": "zone",
+        "config_value": "z_lan",
+        "forward": "ACCEPT",
+        "input": "ACCEPT",
+        "name": "lan",
+        "output": "ACCEPT",
+        "network": [
+          "lan",
+          "public29"
+        ]
+      },
+      {
+        "config_name": "zone",
+        "config_value": "z_wan",
+        "forward": "REJECT",
+        "input": "REJECT",
+        "masq": "1",
+        "mtu_fix": "1",
+        "name": "wan",
+        "output": "ACCEPT",
+        "network": [
+          "wan",
+          "wan2"
+        ]
+      },
+      {
+        "config_name": "forwarding",
+        "config_value": "fwd_lan_wan",
+        "dest": "wan",
+        "src": "lan"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_dhcp_renew",
+        "dest_port": "68",
+        "family": "ipv4",
+        "name": "Allow-DHCP-Renew",
+        "proto": "udp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_ping_wan",
+        "family": "ipv4",
+        "icmp_type": "echo-request",
+        "name": "Allow-Ping",
+        "proto": "icmp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_ping_servperso",
+        "family": "ipv4",
+        "icmp_type": [
+          "echo-request"
+        ],
+        "name": "Allow-Ping",
+        "proto": "icmp",
+        "src": "Serveperso",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_igmp",
+        "family": "ipv4",
+        "name": "Allow-IGMP",
+        "proto": "igmp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_dhcpv6",
+        "dest_port": "546",
+        "family": "ipv6",
+        "name": "Allow-DHCPv6",
+        "proto": "udp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_mld",
+        "family": "ipv6",
+        "icmp_type": [
+          "130/0",
+          "131/0",
+          "132/0",
+          "143/0"
+        ],
+        "name": "Allow-MLD",
+        "proto": "icmp",
+        "src": "wan",
+        "src_ip": "fe80::/10",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_icmpv6_input",
+        "family": "ipv6",
+        "icmp_type": [
+          "echo-request",
+          "echo-reply",
+          "destination-unreachable",
+          "packet-too-big",
+          "time-exceeded",
+          "bad-header",
+          "unknown-header-type",
+          "router-solicitation",
+          "neighbour-solicitation",
+          "router-advertisement",
+          "neighbour-advertisement"
+        ],
+        "limit": "1000/sec",
+        "name": "Allow-ICMPv6-Input",
+        "proto": "icmp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_icmpv6_forward",
+        "dest": "*",
+        "family": "ipv6",
+        "icmp_type": [
+          "echo-request",
+          "echo-reply",
+          "destination-unreachable",
+          "packet-too-big",
+          "time-exceeded",
+          "bad-header",
+          "unknown-header-type"
+        ],
+        "limit": "1000/sec",
+        "name": "Allow-ICMPv6-Forward",
+        "proto": "icmp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_ipsec_esp",
+        "dest": "lan",
+        "name": "Allow-IPSec-ESP",
+        "proto": "esp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_isakmp",
+        "dest": "lan",
+        "dest_port": "500",
+        "name": "Allow-ISAKMP",
+        "proto": "udp",
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_pve_https",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::5"
+        ],
+        "dest_port": "8006",
+        "family": "ipv6",
+        "name": "pve_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_pbs_https",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::4"
+        ],
+        "dest_port": "8007",
+        "family": "ipv6",
+        "name": "pbs_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_pbs_https",
+        "dest": "lan",
+        "dest_ip": "10.27.22.4",
+        "dest_port": "8007",
+        "name": "pbs_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "8007",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_pve_https",
+        "dest": "lan",
+        "dest_ip": "10.27.22.5",
+        "dest_port": "8006",
+        "name": "pve_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "8006",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_jenkins_http",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::7"
+        ],
+        "dest_port": "80",
+        "name": "jenkins_http",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_jenkins_8080",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::7"
+        ],
+        "dest_port": "8080",
+        "family": "ipv6",
+        "name": "jenkins_8080",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_jenkins_8080",
+        "dest": "lan",
+        "dest_ip": "10.27.22.7",
+        "dest_port": "8080",
+        "name": "jenkins_8080",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "8080",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_nas_http",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::2"
+        ],
+        "dest_port": "5000",
+        "family": "ipv6",
+        "name": "nas_http",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_nas_https",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::2"
+        ],
+        "dest_port": "5001",
+        "family": "ipv6",
+        "name": "nas_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_nas2_http",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::10"
+        ],
+        "dest_port": "5010",
+        "family": "ipv6",
+        "name": "nas2_http",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_nas2_https",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::10"
+        ],
+        "dest_port": "5011",
+        "family": "ipv6",
+        "name": "nas2_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas2_http",
+        "dest": "lan",
+        "dest_ip": "10.27.22.10",
+        "dest_port": "5010",
+        "name": "nas2_http",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "5010",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas2_https",
+        "dest": "lan",
+        "dest_ip": "10.27.22.10",
+        "dest_port": "5011",
+        "name": "nas2_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "5011",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas_http",
+        "dest": "lan",
+        "dest_ip": "10.27.22.2",
+        "dest_port": "5000",
+        "name": "nas_http",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "5000",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas_https",
+        "dest": "lan",
+        "dest_ip": "10.27.22.2",
+        "dest_port": "5001",
+        "name": "nas_https",
+        "proto": [
+          "tcp"
+        ],
+        "src": "wan",
+        "src_dport": "5001",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_iperf3",
+        "dest": "lan",
+        "dest_ip": "10.27.22.9",
+        "dest_port": "5201",
+        "name": "iperf3",
+        "proto": [
+          "tcp",
+          "udp"
+        ],
+        "src": "wan",
+        "src_dport": "5201",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_iperf3",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::9"
+        ],
+        "dest_port": "5201",
+        "family": "ipv6",
+        "name": "iperf3",
+        "proto": [
+          "tcp",
+          "udp"
+        ],
+        "src": "wan",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "zone",
+        "config_value": "z_servperso",
+        "device": [
+          "pptp-servperso"
+        ],
+        "forward": "REJECT",
+        "input": "REJECT",
+        "masq": "1",
+        "mtu_fix": "1",
+        "name": "Serveperso",
+        "output": "ACCEPT",
+        "network": [
+          "servperso"
+        ]
+      },
+      {
+        "config_name": "forwarding",
+        "config_value": "fwd_lan_servperso",
+        "dest": "Serveperso",
+        "src": "lan"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_allow_zerotier_inbound",
+        "dest_port": "9993",
+        "name": "Allow-ZeroTier-Inbound",
+        "proto": [
+          "udp"
+        ],
+        "src": "*",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_mail",
+        "dest": "lan",
+        "name": "newMailServer",
+        "src": "Serveperso",
+        "target": "ACCEPT",
+        "proto": [
+          "all"
+        ],
+        "dest_ip": [
+          "2a07:7e81:3f1c::17"
+        ]
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_romaclubmatera",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::16"
+        ],
+        "name": "romaclubmatera",
+        "proto": [
+          "all"
+        ],
+        "src": "Serveperso",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_ninux_nnxx",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::11"
+        ],
+        "name": "ninux-nnxx",
+        "proto": [
+          "all"
+        ],
+        "src": "Serveperso",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_openwisp",
+        "dest": "lan",
+        "dest_ip": [
+          "2a07:7e81:3f1c::18"
+        ],
+        "name": "openwisp",
+        "proto": [
+          "all"
+        ],
+        "src": "Serveperso",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "nat",
+        "config_value": "nat1",
+        "enabled": "0",
+        "name": "no-nat-mailserver",
+        "proto": [
+          "all"
+        ],
+        "src": "Serveperso",
+        "src_ip": "{{ confine_extra_net }}",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "rule_servperso_vm29",
+        "dest": "lan",
+        "dest_ip": "{{ confine_public_net }}",
+        "name": "Allow-servperso-to-vm29",
+        "proto": [
+          "all"
+        ],
+        "src": "Serveperso",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "nat",
+        "config_value": "nat2",
+        "name": "no-nat-vm29",
+        "proto": "all",
+        "src": "Serveperso",
+        "src_ip": "{{ confine_public_net }}",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas_web443",
+        "name": "nas_web_443",
+        "src": "wan",
+        "dest": "lan",
+        "proto": "tcp",
+        "src_dip": "{{ confine_wan2_ipaddr }}",
+        "src_dport": "443",
+        "dest_ip": "10.27.22.2",
+        "dest_port": "443",
+        "target": "DNAT"
+      },
+      {
+        "config_name": "redirect",
+        "config_value": "dnat_nas_web80",
+        "name": "nas_web_80",
+        "src": "wan",
+        "dest": "lan",
+        "proto": "tcp",
+        "src_dip": "{{ confine_wan2_ipaddr }}",
+        "src_dport": "80",
+        "dest_ip": "10.27.22.2",
+        "dest_port": "80",
+        "target": "DNAT"
+      }
+    ],
+    "dhcp": [
+      {
+        "config_name": "dnsmasq",
+        "config_value": "dnsmasq1",
+        "domain": "basilicata.nnxx",
+        "domainneeded": "1",
+        "ednspacket_max": "1232",
+        "expandhosts": "1",
+        "leasefile": "/tmp/dhcp.leases",
+        "local": "/ninux/",
+        "localise_queries": "1",
+        "localservice": "1",
+        "rebind_localhost": "1",
+        "rebind_protection": "1",
+        "resolvfile": "/tmp/resolv.conf.d/resolv.conf.auto",
+        "cachesize": "1000",
+        "authoritative": "1",
+        "address": [
+          "/wifiauth.nnxx.ninux.org/192.168.182.1"
+        ],
+        "nonegcache": "1",
+        "logdhcp": "1",
+        "logfacility": "/tmp/dnsmasq.log",
+        "readethers": "1",
+        "rebind_domain": [
+          "nnxx.ninux.org",
+          "basilicata.ninux.org",
+          "ninux-nnxx.it",
+          "romaclubmatera.it"
+        ],
+        "notinterface": [
+          "wan",
+          "wan_6",
+          "wan2"
+        ],
+        "server": [
+          "/nnxx/135.125.196.114",
+          "/nnxx/135.125.233.182",
+          "1.1.1.1",
+          "8.8.8.8",
+          "2001:4860:4860::8888"
+        ]
+      },
+      {
+        "config_name": "dhcp",
+        "config_value": "lan",
+        "interface": "lan",
+        "start": "100",
+        "limit": "150",
+        "leasetime": "12h",
+        "dhcpv4": "server",
+        "dhcpv6": "server",
+        "ra": "server",
+        "ra_flags": [
+          "managed-config",
+          "other-config"
+        ],
+        "dhcp_option": [
+          "6,{{ confine_lan_ip }},8.8.8.8"
+        ]
+      },
+      {
+        "config_name": "dhcp",
+        "config_value": "wan",
+        "interface": "wan",
+        "ignore": "1"
+      },
+      {
+        "config_name": "odhcpd",
+        "config_value": "odhcpd",
+        "maindhcp": "0",
+        "leasefile": "/tmp/odhcpd.leases",
+        "leasetrigger": "/usr/sbin/odhcpd-update",
+        "loglevel": "3",
+        "piodir": "/tmp/odhcpd-piodir",
+        "hostsdir": "/tmp/hosts"
+      }
+    ],
+    "banip": [
+      {
+        "config_name": "banip",
+        "config_value": "global",
+        "ban_enabled": "1",
+        "ban_debug": "0",
+        "ban_autodetect": "0",
+        "ban_logterm": [
+          "Exit before auth from",
+          "luci: failed login"
+        ],
+        "ban_fetchretry": "5",
+        "ban_nicelimit": "0",
+        "ban_filelimit": "1024",
+        "ban_deduplicate": "1",
+        "ban_nftpriority": "-100",
+        "ban_icmplimit": "25",
+        "ban_synlimit": "10",
+        "ban_udplimit": "100",
+        "ban_nftpolicy": "memory",
+        "ban_nftretry": "3",
+        "ban_blockpolicy": "drop",
+        "ban_nftloglevel": "warn",
+        "ban_logprerouting": "0",
+        "ban_loginbound": "0",
+        "ban_logoutbound": "0",
+        "ban_loglimit": "100",
+        "ban_logratelimit": "10",
+        "ban_logburstlimit": "5",
+        "ban_country": [
+          "bg"
+        ],
+        "ban_autoallowlist": "1",
+        "ban_autoallowuplink": "subnet",
+        "ban_autoblocklist": "1",
+        "ban_allowlistonly": "1",
+        "ban_fetchcmd": "curl",
+        "ban_protov4": "1",
+        "ban_ifv4": [
+          "wan",
+          "wan2"
+        ],
+        "ban_protov6": "1",
+        "ban_ifv6": [
+          "wan_6"
+        ],
+        "ban_dev": [
+          "pppoe-wan",
+          "{{ confine_wan_port }}.{{ confine_wan2_vlan }}"
+        ],
+        "ban_trigger": [
+          "wan",
+          "wan_6",
+          "wan2"
+        ],
+        "ban_feedin": [
+          "allowlist"
+        ],
+        "ban_allowurl": [
+          "https://www.ipdeny.com/ipblocks/data/aggregated/it-aggregated.zone",
+          "https://www.ipdeny.com/ipv6/ipaddresses/aggregated/it-aggregated.zone"
+        ]
+      }
+    ],
+    "uhttpd": [
+      {
+        "config_name": "uhttpd",
+        "config_value": "main",
+        "redirect_https": "0",
+        "home": "/www",
+        "rfc1918_filter": "1",
+        "max_requests": "3",
+        "max_connections": "100",
+        "cert": "/etc/uhttpd.crt",
+        "key": "/etc/uhttpd.key",
+        "cgi_prefix": "/cgi-bin",
+        "lua_prefix": [
+          "/cgi-bin/luci=/usr/lib/lua/luci/sgi/uhttpd.lua"
+        ],
+        "script_timeout": "60",
+        "network_timeout": "30",
+        "http_keepalive": "20",
+        "tcp_keepalive": "1",
+        "ubus_prefix": "/ubus",
+        "listen_http": [
+          "{{ confine_lan_ip }}:80"
+        ],
+        "listen_https": [
+          "{{ confine_lan_ip }}:443"
+        ]
+      }
+    ],
+    "dropbear": [
+      {
+        "config_name": "dropbear",
+        "config_value": "dropbear1",
+        "PasswordAuth": "on",
+        "Port": "22",
+        "RootPasswordAuth": "on"
+      }
+    ],
+    "wireless": [
+      {
+        "config_name": "wifi-iface",
+        "config_value": "wifi_wmesh0",
+        "ft_over_ds": "1",
+        "ocv": "0",
+        "device": "radio0",
+        "disabled": "0",
+        "encryption": "sae-mixed+ccmp",
+        "ieee80211r": "1",
+        "ieee80211w": "1",
+        "ifname": "wmesh0",
+        "key": "{{ confine_wmesh_key }}",
+        "mode": "ap",
+        "network": "mesh",
+        "reassociation_deadline": "1000",
+        "ssid": "Ninux Mesh AP",
+        "wds": "0"
+      }
+    ],
+    "general": {
+      "log_size": "51200",
+      "ttylogin": "0",
+      "urandom_seed": "0",
+      "timezone": "Europe/Rome",
+      "log_file": "/root/logs/messages",
+      "log_buffer_size": "1024"
+    },
+    "files": [
+      {
+        "path": "/etc/nftables.d/20-ninux-antispoof.nft",
+        "mode": "0644",
+        "contents": "# Anti-spoofing in ingresso dalle WAN (router di confine NINUX, ReginaMargherita116)\n# Incluso da fw4 dentro \"table inet fw4\". Config LOCALE, non gestita da OpenWISP.\n# Scarta i pacchetti che arrivano da Internet (PPPoE e tunnel PPTP Serveperso)\n# con un IP sorgente che può esistere solo DENTRO la rete NINUX.\n# Gira in prerouting a priorità raw: prima del conntrack, del NAT e del forward.\n# Rollback: rm /etc/nftables.d/20-ninux-antispoof.nft && fw4 reload\n\nset ninux_bogon_v4 {\n\ttype ipv4_addr\n\tflags interval\n\telements = {\n\t\t10.0.0.0/8,         # rete NINUX\n\t\t172.16.0.0/12,      # privati (RFC 1918)\n\t\t192.168.0.0/16,     # privati (RFC 1918)\n\t\t127.0.0.0/8,        # loopback\n\t\t{{ confine_public_net }},    # /29 pubblica NINUX (VM, server OpenWISP)\n\t}\n}\n\nset ninux_bogon_v6 {\n\ttype ipv6_addr\n\tflags interval\n\telements = {\n\t\t{{ confine_public6_prefix }},  # prefisso pubblico NINUX\n\t\tfc00::/7,             # ULA (fdd9:5aff:96d4::/64 e prefissi della mesh)\n\t\t::1/128,              # loopback\n\t}\n}\n\nchain ninux_antispoof {\n\ttype filter hook prerouting priority raw; policy accept;\n\tiifname { \"{{ confine_wan_port }}.{{ confine_wan2_vlan }}\", \"pppoe-wan\", \"pptp-servperso\" } ip saddr @ninux_bogon_v4 counter drop comment \"ninux: sorgente IPv4 interna arrivata da una WAN\"\n\tiifname { \"{{ confine_wan_port }}.{{ confine_wan2_vlan }}\", \"pppoe-wan\", \"pptp-servperso\" } ip6 saddr @ninux_bogon_v6 counter drop comment \"ninux: sorgente IPv6 interna arrivata da una WAN\"\n}\n"
+      },
+      {
+        "path": "/etc/iproute2/rt_tables",
+        "mode": "0644",
+        "contents": "#\n# reserved values\n#\n128\tprelocal\n255\tlocal\n254\tmain\n253\tdefault\n0\tunspec\n130\tservperso\n#\n# local\n#\n#1\tinr.ruhep\n"
+      },
+      {
+        "path": "/etc/rc.local",
+        "mode": "0755",
+        "contents": "# Put your custom commands here that should be executed once\n# the system init finished. By default this file does nothing.\n\n/usr/sbin/legacy-openwisp-monitoring\ntouch /etc/crontabs/root\n/etc/init.d/cron start\n\n/root/logs/cstate-limit.sh\nexit 0\n"
+      },
+      {
+        "path": "/root/logs/cstate-limit.sh",
+        "mode": "0755",
+        "contents": "#!/bin/sh\n# Gemini Lake (J4125): gli stati C profondi causano blocchi completi del sistema.\n# Lascia attivi solo POLL, C1 e C1E.\nfor s in /sys/devices/system/cpu/cpu*/cpuidle/state*; do\n\tcase \"$(cat $s/name)\" in POLL|C1|C1E) ;; *) echo 1 > $s/disable ;; esac\ndone\nlogger -t cstate-limit \"stati C profondi disattivati\"\n"
+      },
+      {
+        "path": "/etc/sysupgrade.conf",
+        "mode": "0644",
+        "contents": "## This file contains files and directories that should\n## be preserved during an upgrade.\n\n# /etc/example.conf\n# /etc/openvpn/\n/root/logs/\n/etc/nftables.d/20-ninux-antispoof.nft\n"
+      }
+    ]
+  },
+  "default_values": {
+    "confine_wan_port": "eth0",
+    "confine_lan_port1": "eth1",
+    "confine_lan_port2": "eth2",
+    "confine_lan_port3": "eth3",
+    "confine_wan_vlan": "835",
+    "confine_wan2_vlan": "250",
+    "confine_wan2_ipaddr": "195.32.4.188",
+    "confine_wan2_gateway": "195.32.70.193",
+    "confine_lan_ip": "10.27.22.1",
+    "confine_lan_prefixlen": "24",
+    "confine_lan_network": "10.27.22.0/24",
+    "confine_public_ip": "194.28.98.57",
+    "confine_public_netmask": "255.255.255.248",
+    "confine_public_net": "194.28.98.56/29",
+    "confine_public6_prefix": "2a07:7e81:3f1c::/48",
+    "confine_servperso_server": "nobgp.servperso.net",
+    "confine_pve_gw": "10.27.22.5",
+    "confine_mesh_gw": "10.27.99.7",
+    "confine_ninux_net": "10.27.0.0/16",
+    "confine_extra_net": "62.3.50.38/31",
+    "confine_ula_prefix": "fdd9:5aff:96d4::/48",
+    "confine_dhcp_duid": "0004e26c41296ac94356aac73ac110a8c011"
+  }
+}
