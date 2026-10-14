@@ -13,9 +13,36 @@
 # unidirezionale, metrica infinita), mgmt/LAN irraggiungibili. Le mettiamo in due
 # zone dedicate aperte: "VPN" (owzt*, per DEVICE con wildcard perche' il nome
 # logico owzt<id> cambia col network id) e "mesh" (br-mesh), con forwarding
-# bidirezionale fra VPN, mesh e lan (i client degli AP). Named-section idempotente.
+# bidirezionale fra VPN, mesh e lan (i client degli AP).
+#
+# Zone e forwarding si cercano per NOME/CONTENUTO, non per nome di sezione: sul
+# router di confine esistevano gia' zone locali identiche (z_vpn, z_mesh,
+# fwd_*) e crearne altre con un'altra sezione ha duplicato "VPN" e "mesh" ->
+# fw4 rifiuta il ruleset intero e al riavvio il router resta SENZA firewall
+# (14/10/2026). Per questo dopo ogni modifica si valida con fw4 check e, se
+# fallisce, si torna alla configurazione precedente.
+
+# Sezione uci della zona con questo nome (vuoto se non esiste)
+fw_zone_section() {
+    for s in $(uci -q show firewall | sed -n 's/^firewall\.\([^.=]*\)=zone$/\1/p'); do
+        [ "$(uci -q get "firewall.$s.name")" = "$1" ] && { echo "$s"; return 0; }
+    done
+    return 1
+}
+
+# Esiste gia' un forwarding src -> dest (in qualunque sezione)?
+fw_forwarding_exists() {
+    for s in $(uci -q show firewall | sed -n 's/^firewall\.\([^.=]*\)=forwarding$/\1/p'); do
+        [ "$(uci -q get "firewall.$s.src")" = "$1" ] && \
+            [ "$(uci -q get "firewall.$s.dest")" = "$2" ] && return 0
+    done
+    return 1
+}
+
 if command -v uci >/dev/null 2>&1; then
     fw_changed=0
+    fw_backup=/tmp/firewall.pre-openwisp-hook
+    cp /etc/config/firewall "$fw_backup" 2>/dev/null
 
     # migrazione: rimuovi la vecchia zona unica "ninux" (versioni precedenti)
     for old in ninux ninux_lan lan_ninux; do
@@ -26,7 +53,9 @@ if command -v uci >/dev/null 2>&1; then
     done
 
     # zona VPN (interfaccia ZeroTier owzt*, per device wildcard)
-    if [ "$(uci -q get firewall.vpn)" != "zone" ]; then
+    vpn_sec="$(fw_zone_section VPN)"
+    if [ -z "$vpn_sec" ]; then
+        vpn_sec=vpn
         uci -q set firewall.vpn=zone
         uci -q set firewall.vpn.name='VPN'
         uci -q set firewall.vpn.input='ACCEPT'
@@ -34,13 +63,15 @@ if command -v uci >/dev/null 2>&1; then
         uci -q set firewall.vpn.forward='ACCEPT'
         fw_changed=1
     fi
-    if ! uci -q get firewall.vpn.device | grep -qF 'owzt*'; then
-        uci -q add_list firewall.vpn.device='owzt*'
+    if ! uci -q get "firewall.$vpn_sec.device" | grep -qF 'owzt*'; then
+        uci -q add_list "firewall.$vpn_sec.device=owzt*"
         fw_changed=1
     fi
 
     # zona mesh (br-mesh 802.11s)
-    if [ "$(uci -q get firewall.mesh)" != "zone" ]; then
+    mesh_sec="$(fw_zone_section mesh)"
+    if [ -z "$mesh_sec" ]; then
+        mesh_sec=mesh
         uci -q set firewall.mesh=zone
         uci -q set firewall.mesh.name='mesh'
         uci -q set firewall.mesh.input='ACCEPT'
@@ -48,8 +79,8 @@ if command -v uci >/dev/null 2>&1; then
         uci -q set firewall.mesh.forward='ACCEPT'
         fw_changed=1
     fi
-    if ! uci -q get firewall.mesh.network | grep -qw mesh; then
-        uci -q add_list firewall.mesh.network='mesh'
+    if ! uci -q get "firewall.$mesh_sec.network" | grep -qw mesh; then
+        uci -q add_list "firewall.$mesh_sec.network=mesh"
         fw_changed=1
     fi
 
@@ -57,19 +88,26 @@ if command -v uci >/dev/null 2>&1; then
     for fwd in "vpn_lan:VPN:lan" "lan_vpn:lan:VPN" "vpn_mesh:VPN:mesh" \
                "mesh_vpn:mesh:VPN" "mesh_lan:mesh:lan" "lan_mesh:lan:mesh"; do
         sec="${fwd%%:*}"; rest="${fwd#*:}"; src="${rest%%:*}"; dst="${rest##*:}"
-        if [ "$(uci -q get firewall.$sec)" != "forwarding" ]; then
-            uci -q set firewall.$sec=forwarding
-            uci -q set firewall.$sec.src="$src"
-            uci -q set firewall.$sec.dest="$dst"
-            fw_changed=1
-        fi
+        fw_forwarding_exists "$src" "$dst" && continue
+        uci -q set firewall.$sec=forwarding
+        uci -q set firewall.$sec.src="$src"
+        uci -q set firewall.$sec.dest="$dst"
+        fw_changed=1
     done
 
     if [ "$fw_changed" = 1 ]; then
         uci -q commit firewall
-        /etc/init.d/firewall reload >/dev/null 2>&1
-        logger -t openwisp-fw "zone firewall VPN(owzt*)/mesh + forwarding applicate"
+        # Mai lasciare una configurazione che fw4 rifiuta: al prossimo avvio il
+        # router resterebbe senza firewall e senza NAT.
+        if command -v fw4 >/dev/null 2>&1 && ! fw4 -q check >/dev/null 2>&1; then
+            cp "$fw_backup" /etc/config/firewall
+            logger -t openwisp-fw "ERRORE: la nuova config firewall non passa fw4 check, ripristinata la precedente"
+        else
+            /etc/init.d/firewall reload >/dev/null 2>&1
+            logger -t openwisp-fw "zone firewall VPN(owzt*)/mesh + forwarding applicate"
+        fi
     fi
+    rm -f "$fw_backup"
 fi
 
 # --- (2) bird2 --------------------------------------------------------------
