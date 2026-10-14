@@ -1,5 +1,5 @@
 {
-  "_comment": "Template OpenWISP2: configurazione COMPLETA del router di confine NINUX (ReginaMargherita116, x86): WAN PPPoE (VLAN 835) + statica (VLAN 250), LAN br-lan con /29 pubblica 194.28.98.56/29, tunnel PPTP Serveperso con policy-routing (tabella 130 'servperso'), firewall completo (port forward, no-NAT /29; le zone VPN/mesh le crea il post-reload-hook del template Bird, default), anti-spoofing nftables, dnsmasq/odhcpd, banIP, uhttpd, AP 'Ninux Mesh AP', /etc/ppp/options.pptp senza MPPE (pppd 2.5 di OpenWrt 25.12.5 rifiuta la vecchia riga 'mppe required' e il server non offre MPPE) con holdoff 30, watchdog hardware ACPI WDAT (kmod-wdat-wdt nel firmware x86: /etc/modules.d/50-wdat-wdt lo carica, rc.local lo fa aprire a procd), netconsole verso il server OpenWISP (hotplug iface lan). Serve a ricostruire il router su hardware nuovo: firmware Ninux x86 + template standard + questo. Credenziali PPPoE/PPTP e chiave dell'AP sono VARIABILI DEL DEVICE (confine_*: segreti senza default, il resto con default = valori attuali), non stanno nel template. Nomi delle porte (eth0..eth3) legati all'hardware attuale: su un altro PC vanno verificati. Backend=OpenWRT, Type=Generic. NON default: si assegna solo al router di confine.",
+  "_comment": "Template OpenWISP2: configurazione COMPLETA del router di confine NINUX (ReginaMargherita116, x86): WAN PPPoE (VLAN 835) + statica (VLAN 250), LAN br-lan con /29 pubblica 194.28.98.56/29, tunnel PPTP Serveperso con policy-routing (tabella 130 'servperso'), firewall completo (port forward, no-NAT /29; le zone VPN/mesh le crea il post-reload-hook del template Bird, default), anti-spoofing nftables, dnsmasq/odhcpd, banIP, uhttpd, /etc/ppp/options.pptp senza MPPE (pppd 2.5 di OpenWrt 25.12.5 rifiuta la vecchia riga 'mppe required' e il server non offre MPPE) con holdoff 30, watchdog hardware ACPI WDAT (kmod-wdat-wdt nel firmware x86: /etc/modules.d/50-wdat-wdt lo carica, rc.local lo fa aprire a procd), netconsole verso il server OpenWISP (hotplug iface lan). Serve a ricostruire il router su hardware nuovo: firmware Ninux x86 + template standard + questo. Credenziali PPPoE/PPTP sono VARIABILI DEL DEVICE (confine_*: segreti senza default, il resto con default = valori attuali), non stanno nel template. Nomi delle porte (eth0..eth3) legati all'hardware attuale: su un altro PC vanno verificati. Backend=OpenWRT, Type=Generic. NON default: si assegna solo al router di confine. Niente WiFi ne' mesh: il router di confine non usa la radio (template Mesh tolto il 15/10/2026, l'hardware puo' restare montato).",
   "backend": "netjsonconfig.OpenWrt",
   "config": {
     "network": [
@@ -873,26 +873,6 @@
         "PasswordAuth": "on",
         "Port": "22",
         "RootPasswordAuth": "on"
-      }
-    ],
-    "wireless": [
-      {
-        "config_name": "wifi-iface",
-        "config_value": "wifi_wmesh0",
-        "ft_over_ds": "1",
-        "ocv": "0",
-        "device": "radio0",
-        "disabled": "0",
-        "encryption": "sae-mixed+ccmp",
-        "ieee80211r": "1",
-        "ieee80211w": "1",
-        "ifname": "wmesh0",
-        "key": "{{ confine_wmesh_key }}",
-        "mode": "ap",
-        "network": "mesh",
-        "reassociation_deadline": "1000",
-        "ssid": "Ninux Mesh AP",
-        "wds": "0"
       }
     ],
     "general": {
