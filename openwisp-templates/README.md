@@ -15,6 +15,7 @@ template dentro OpenWISP.
 | `hotspot-chilli.json` | Hotspot CoovaChilli 2.4GHz — **dismesso**, chilli non è più nel firmware | no | no |
 | `hotspot-uspot.json` | Hotspot uspot 2.4GHz | no | no |
 | `log-remoto.json` | Log remoto (syslog) — invia il syslog al server (`/opt/router-logs/<hostname>/`, Play 5) | sì | no |
+| `router-confine.json` | Router di confine (ReginaMargherita116) — config **completa** del router x86 di confine (WAN, /29, Serveperso, firewall, anti-spoofing…), per ricostruirlo su hardware nuovo. Credenziali = variabili del device `confine_*`. Solo ciò che i template di default non danno | no | no |
 
 Il template **VPN ZeroTier (client)** non sta qui: lo genera OpenWISP
 dall'oggetto VPN ZeroTier (controller self-hosted sul CT OpenWISP, vedi il README
