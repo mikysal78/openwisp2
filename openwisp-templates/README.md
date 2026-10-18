@@ -17,6 +17,12 @@ template dentro OpenWISP.
 | `log-remoto.json` | Log remoto (syslog) — invia il syslog al server (`/opt/router-logs/<hostname>/`, Play 5) | sì | no |
 | `router-confine.json` | Router di confine (ReginaMargherita116) — config **completa** del router x86 di confine (WAN, /29, Serveperso, firewall, anti-spoofing…), per ricostruirlo su hardware nuovo. Credenziali = variabili del device `confine_*`. Solo ciò che i template di default non danno | no | no |
 
+Il template **Nomi dei nodi (hosts)** (default, non richiesto) non sta qui: lo
+genera e aggiorna `files/sync_node_hosts.py` (cron del playbook, tag `hosts`)
+dai dati di monitoraggio. Porta `/etc/ninux-hosts` (IP → nome del nodo, letto da
+dnsmasq anche per la risoluzione inversa) e una sezione dhcp `host` per nodo con
+i MAC della mesh, così LuCI e gli strumenti mostrano il nome invece dell'IP.
+
 Il template **VPN ZeroTier (client)** non sta qui: lo genera OpenWISP
 dall'oggetto VPN ZeroTier (controller self-hosted sul CT OpenWISP, vedi il README
 principale §4). Sul router l'interfaccia è `owzt<6hex del network id>`.

@@ -125,6 +125,26 @@
           < {{ openwisp2_path }}/sync_ipam_hostnames.py > /dev/null 2>&1
       tags: [ipam]
 
+    # Template "Nomi dei nodi (hosts)": nome dei nodi per i loro IP (mesh,
+    # ZeroTier, br-lan) e per i MAC della mesh, generato dai dati di
+    # monitoraggio; sulla mesh altrimenti si vedono solo indirizzi. Lo script
+    # salva il template solo se il contenuto cambia.
+    - name: Script del template "Nomi dei nodi (hosts)"
+      ansible.builtin.copy:
+        src: files/sync_node_hosts.py
+        dest: "{{ openwisp2_path }}/sync_node_hosts.py"
+        mode: "0644"
+      tags: [hosts]
+
+    - name: Cron per il template "Nomi dei nodi (hosts)" (ogni 15 minuti)
+      ansible.builtin.cron:
+        name: "sync nomi dei nodi (hosts)"
+        minute: "*/15"
+        job: >-
+          {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/sync_node_hosts.py > /dev/null 2>&1
+      tags: [hosts]
+
     # Network Topology: le topology ZeroTier (parser ZeroTierParser, strategy
     # receive) vengono alimentate interrogando il controller ZeroTier locale
     # (l'auth al controller è locale, mentre il fetch di OpenWISP non la gestisce).
