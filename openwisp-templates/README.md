@@ -30,8 +30,11 @@ principale §4). Sul router l'interfaccia è `owzt<6hex del network id>`.
 ## Import nella UI
 
 Admin → **Templates → Add**: backend `OpenWRT`, type `Generic`, poi passa in
-**modalità avanzata** (icona `</>` nell'editor) e incolla il JSON. In
-alternativa, via shell Django sul server:
+**modalità avanzata** (icona `</>` nell'editor) e incolla il JSON. I file AP
+(`ap-*.json`) hanno invece la forma `{backend, config, default_values}`, come
+li restituisce l'API: nell'editor va incollato solo il contenuto di `config`,
+mentre `default_values` va nel campo **Configuration variables** del template.
+In alternativa, via shell Django sul server:
 
 ```sh
 ssh -p 2400 root@10.27.22.18
@@ -53,7 +56,8 @@ t.save()
 |---|---|---|
 | `mesh_subnet1_ip1` | regola subnet-division `mesh` (IPAM `10.27.99.0/24`) | IP mesh univoco per device, assegnato da OpenWISP |
 | `wan_interface` | `default_values` del template bird (`wan`) | solo per lo stub OSPF: cambiala nel device se la WAN ha un altro nome (es. `eth1`, `eth0.2`) |
-| `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `ninux2026`) | sovrascrivibili per device |
+| `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `CHANGEME`) | sovrascrivibili per device |
+| `wifi_encryption`, `wifi_pmf` | `default_values` dei template AP (`wpa2_personal_mixed` / `1`) | cifratura e PMF del SSID principale, sovrascrivibili per device (es. `wpa3_personal` + `2` per WPA3 puro) |
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
 | `name`, `mac_address` | OpenWISP | si risolvono per-device (NAS-Identifier / Called-Station) |
@@ -102,16 +106,20 @@ python3 openwisp-templates/build_bird_template.py
 - `mesh-80211s.json` — 802.11s su `radio0`, mesh id `ninux-mesh`, canale 1,
   HT20, `mesh_fwding: false` (l'inoltro lo fa Babel, non l'802.11s). Il bridge
   `mesh` diventa `br-mesh`, con l'IP mesh assegnato da IPAM.
-- `ap-24ghz.json` / `ap-dualband.json` — AP sulla rete `lan`, WPA3-SAE puro
-  (`sae+ccmp`, `ieee80211w: 2`). `radio0` è sul **canale 1**, lo stesso della
+- `ap-24ghz.json` / `ap-dualband.json` — AP sulla rete `lan`, cifratura da
+  variabile: di default WPA2-PSK/WPA3-SAE misto
+  (`wifi_encryption = wpa2_personal_mixed`, che netjsonconfig traduce in UCI
+  `sae-mixed`; cifrario CCMP, PMF opzionale `wifi_pmf = 1`). `radio0` è sul **canale 1**, lo stesso della
   mesh: è la stessa radio, non può stare su due canali. Il dual band aggiunge
   `radio1` (5GHz, canale 36, 802.11ac, 80MHz).
 
 - `ap-dualssid.json` — identico a `ap-dualband.json` ma con **due SSID** su
-  entrambe le bande (2.4+5GHz), tutti e due WPA3-SAE sulla stessa rete `lan`. Il
-  primo SSID usa le variabili degli altri AP (`wifi_ssid`/`wifi_password`), il
-  secondo usa `wifi_ssid2`/`wifi_password2`.
-  - `default_values` consigliati sul template: `wifi_ssid2 = NINUX 2`,
+  entrambe le bande (2.4+5GHz), tutti e due sulla stessa rete `lan`. Il primo
+  SSID usa le variabili degli altri AP (`wifi_ssid`/`wifi_password`/
+  `wifi_encryption`/`wifi_pmf`), il secondo usa `wifi_ssid2`/`wifi_password2`
+  ed è fisso in WPA/WPA2-PSK misto (`wpa_personal_mixed`, cifrario automatico,
+  PMF disattivato).
+  - `default_values` sul template: `wifi_ssid2 = NINUX 2`,
     `wifi_password2 = CHANGEME`.
   - applicalo **al posto** di `ap-24ghz`/`ap-dualband` (stessi nomi radio/iface),
     non insieme.
