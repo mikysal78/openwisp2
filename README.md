@@ -177,6 +177,36 @@ La config viene validata con `bird -p` prima dell'applicazione.
 > in OpenWISP e il CT ha joinato la rete ZeroTier; con `check link yes` bird la
 > ignora finché non compare, quindi il play si può lanciare anche prima.
 
+### Topology Babel in Network Topology
+
+netdiff non ha un parser per Babel/BIRD, e Babel (distance-vector) non dà la
+topologia intera da un solo nodo: ognuno vede solo i propri vicini. Lo script
+`files/topology_babel_feed.py` (cron ogni 5 minuti, tag `topology`) legge
+`birdc show babel interfaces/neighbors` sul server e, via SSH con la chiave
+root del server, su ogni device all'IP di gestione. Unisce poi le tabelle in un
+**NetJSON NetworkGraph** e lo invia alla topology **"Babel NINUX"** (parser
+`NetJsonParser`, strategy `receive`, expiration time 330 s), creata in admin.
+
+- **Nodi**: id `<MAC del device>@babel`. È il formato con cui l'integrazione
+  `openwisp_network_topology.integrations.device` (attivata tramite
+  `openwisp2_extra_django_apps`) lega il nodo al device. Il server è il nodo
+  `openwisp@babel`.
+- **Vicini**: un vicino `fe80::` è attribuito al router che lo dichiara come
+  proprio next hop in `show babel interfaces`. Se un router non risponde, valgono
+  la mappa dell'ultimo giro (`/opt/openwisp2/topology_babel_cache.json`) e
+  l'EUI-64 del MAC del device.
+- **Link**: uno per coppia di nodi, con l'adiacenza più economica in ogni verso
+  (come sceglie Babel). Il costo è il peggiore dei due versi; `costs`,
+  `interfaces` e `all_costs` (anche le adiacenze di riserva, es. radio + cavo)
+  sono nelle proprietà.
+- **VPN esclusa**: i link ZeroTier non sono inclusi (`INCLUDE_VPN = False`).
+  Sulla VPN tutti vedono tutti e il grafo diventerebbe una maglia completa; per
+  la VPN c'è la topology ZeroTier. I siti collegati solo via VPN compaiono come
+  nodi isolati.
+
+Prova senza inviare nulla:
+`BABEL_FEED_DRY_RUN=1 manage.py shell < topology_babel_feed.py`.
+
 ## 5. WiFi Login Pages
 
 Le login pages rispondono su `https://wifi.<dominio>`. L'app
