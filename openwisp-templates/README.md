@@ -56,7 +56,7 @@ t.save()
 |---|---|---|
 | `mesh_subnet1_ip1` | regola subnet-division `mesh` (IPAM `10.27.99.0/24`) | IP mesh univoco per device, assegnato da OpenWISP |
 | `wan_interface` | `default_values` del template bird (`wan`) | solo per lo stub OSPF: cambiala nel device se la WAN ha un altro nome (es. `eth1`, `eth0.2`) |
-| `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `CHANGEME`) | sovrascrivibili per device |
+| `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `CHANGEME`) | sovrascrivibili per device; nel repo la password è un segnaposto: quella reale si imposta nel template su OpenWISP o nelle variabili del device |
 | `wifi_encryption`, `wifi_pmf` | `default_values` dei template AP (`wpa2_personal_mixed` / `1`) | cifratura e PMF del SSID principale, sovrascrivibili per device (es. `wpa3_personal` + `2` per WPA3 puro) |
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
@@ -120,7 +120,7 @@ python3 openwisp-templates/build_bird_template.py
   ed è fisso in WPA/WPA2-PSK misto (`wpa_personal_mixed`, cifrario automatico,
   PMF disattivato).
   - `default_values` sul template: `wifi_ssid2 = NINUX 2`,
-    `wifi_password2 = CHANGEME`.
+    `wifi_password2 = CHANGEME` (segnaposto, vedi tabella Variabili).
   - applicalo **al posto** di `ap-24ghz`/`ap-dualband` (stessi nomi radio/iface),
     non insieme.
 
