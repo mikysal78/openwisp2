@@ -165,6 +165,27 @@
           < {{ openwisp2_path }}/topology_zerotier_feed.py > /dev/null 2>&1
       tags: [topology]
 
+    # Topology "Babel NINUX" (parser NetJsonParser, strategy receive): netdiff
+    # non ha un parser Babel/BIRD e Babel non dà la topologia intera da un solo
+    # nodo, quindi lo script legge 'birdc show babel ...' sul server e via SSH
+    # su ogni router e unisce le tabelle dei vicini in un NetworkGraph.
+    # L'oggetto Topology si crea in admin (label "Babel NINUX").
+    - name: Script feed topology Babel
+      ansible.builtin.copy:
+        src: files/topology_babel_feed.py
+        dest: "{{ openwisp2_path }}/topology_babel_feed.py"
+        mode: "0644"
+      tags: [topology]
+
+    - name: Cron feed topology Babel (ogni 5 minuti)
+      ansible.builtin.cron:
+        name: "feed topology Babel"
+        minute: "*/5"
+        job: >-
+          {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/topology_babel_feed.py > /dev/null 2>&1
+      tags: [topology]
+
     # Al boot supervisor (uwsgi/celery) parte in parallelo a InfluxDB, che
     # impiega una decina di secondi ad aprire gli shard. openwisp-monitoring
     # chiama create_database() dentro AppConfig.ready(): se InfluxDB non
@@ -343,8 +364,12 @@
 
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
     # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
+    # Integrazione topology <-> device: lega i nodi delle topology ai device
+    # (ZeroTier via member id, NetJSON/Babel via id "<MAC>@babel") e, al cambio
+    # di stato di un link, fa ripartire i check del monitoring.
     openwisp2_extra_django_apps:
       - "openwisp_controller.subnet_division"
+      - "openwisp_network_topology.integrations.device"
 
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
