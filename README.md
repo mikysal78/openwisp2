@@ -199,13 +199,24 @@ root del server, su ogni device all'IP di gestione. Unisce poi le tabelle in un
   (come sceglie Babel). Il costo è il peggiore dei due versi; `costs`,
   `interfaces` e `all_costs` (anche le adiacenze di riserva, es. radio + cavo)
   sono nelle proprietà.
-- **VPN esclusa**: i link ZeroTier non sono inclusi (`INCLUDE_VPN = False`).
-  Sulla VPN tutti vedono tutti e il grafo diventerebbe una maglia completa; per
-  la VPN c'è la topology ZeroTier. I siti collegati solo via VPN compaiono come
-  nodi isolati.
+- **VPN inclusa** (`INCLUDE_VPN = True`): sulla VPN ZeroTier tutti vedono
+  tutti, quindi tra i nodi ZeroTier il grafo è una maglia completa (link
+  `vpn`, costo ~600). Dove c'è anche radio o cavo, il link usa l'adiacenza più
+  economica e la VPN resta in `all_costs`. Con `False` i siti collegati solo via
+  VPN compaiono come nodi isolati.
 
 Prova senza inviare nulla:
 `BABEL_FEED_DRY_RUN=1 manage.py shell < topology_babel_feed.py`.
+
+**Colori nel visualizzatore**: il visualizzatore di OpenWISP colora i link solo
+per stato (up verde, down rosso). Il playbook (tag `topology`) installa una copia
+di `netjsongraph/netjsongraph-script.html` in `/opt/openwisp2/templates/`, che
+Django legge prima di quella del pacchetto. Questa copia colora i link up per
+`type`: **cavo blu**, **VPN viola tratteggiata e sottile**, **misto
+verde-acqua**; radio e link senza tipo (es. topology ZeroTier) restano verdi, i
+down tutti rossi. Il template è copiato da openwisp-network-topology **1.3**:
+dopo ogni upgrade del modulo va confrontato con l'originale e riallineato
+(`files/django-templates/netjsongraph/netjsongraph-script.html`).
 
 ## 5. WiFi Login Pages
 

@@ -1,0 +1,255 @@
+{% load i18n %}
+{% comment %}
+NINUX: copia di openwisp_network_topology/templates/netjsongraph/netjsongraph-script.html
+(openwisp-network-topology 1.3) con i link colorati per tipo (properties.type,
+scritto da topology_babel_feed.py): cavo blu, VPN viola tratteggiata, radio e
+link senza tipo verdi come upstream; i link down restano tutti rossi.
+Ogni categoria assegnata deve esistere in linkCategories: netjsongraph.js fa
+linkCategories.find(...).linkStyle e con una categoria ignota si rompe.
+Ad ogni upgrade di openwisp-network-topology riallineare questa copia.
+Il CSS della legenda è iniettato da JS: nell'admin questo template arriva via
+AJAX e jQuery .html() non porta nella pagina un <style> scritto qui.
+{% endcomment %}
+<script>
+    loadNetJsonGraph = (el='body', url='{{ graph_url }}?include_unpublished=true') => {
+        const history_url = '{{ history_url }}?include_unpublished=true';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const apiHost = new URL('{{ graph_url }}').host;
+        const wsUrl = `${wsProtocol}//${apiHost}/ws/network-topology/topology/${getTopologyIdFromUrl()}/`;
+        const socket = new WebSocket(wsUrl);
+
+        const getDataParseOptions = (data) => {
+            return {
+                dateString: data,
+                parseRegular:
+                    /^([1-9]\d{3})-(\d{1,2})-(\d{1,2})T(\d{1,2}):(\d{1,2}):(\d{1,2})(?:\.(\d{1,6}))?Z$/,
+            };
+        };
+        const graphConfig = {
+            series:{
+                zoom:'2',
+            },
+            baseOptions: {
+                backgroundColor: '#282222b3',
+                toolbox: {
+                    right: '60',
+                    top: '15',
+                },
+            },
+        }
+        // load graph
+        const graph = new NetJSONGraph(url, {
+            el: el,
+            graphConfig: graphConfig,
+            linkCategories: [
+                {
+                    name: 'down',
+                    linkStyle: {
+                        color: '#c92517',
+                        width: 6,
+                    },
+                    emphasis: {
+                        linkStyle: {
+                            color: '#FD0101',
+                            opacity: 1,
+                        },
+                    },
+                },
+                {
+                    name: 'up',
+                    linkStyle: {
+                        color: '#1ba619',
+                        width: 6,
+                    },
+                    emphasis: {
+                        linkStyle: {
+                            color: '#3acc38',
+                            opacity: 1,
+                        },
+                    },
+                },
+                {
+                    name: 'cavo',
+                    linkStyle: {
+                        color: '#2f80ed',
+                        width: 6,
+                    },
+                    emphasis: {
+                        linkStyle: {
+                            color: '#6aa8ff',
+                            opacity: 1,
+                        },
+                    },
+                },
+                {
+                    name: 'vpn',
+                    linkStyle: {
+                        color: '#a05cd6',
+                        width: 2,
+                        type: 'dashed',
+                        opacity: 0.7,
+                    },
+                    emphasis: {
+                        linkStyle: {
+                            color: '#c98bf5',
+                            opacity: 1,
+                        },
+                    },
+                },
+                {
+                    name: 'misto',
+                    linkStyle: {
+                        color: '#17a2a2',
+                        width: 6,
+                    },
+                    emphasis: {
+                        linkStyle: {
+                            color: '#3fd0d0',
+                            opacity: 1,
+                        },
+                    },
+                },
+            ],
+            prepareData: (data) => {
+                const typedCategories = ['cavo', 'vpn', 'misto'];
+                data.links.map((link) => {
+                    link.properties = link.properties || {};
+                    if (link.properties.status) {
+                        link.category = link.properties.status;
+                    }
+                    if (
+                        link.properties.status === 'up' &&
+                        typedCategories.includes(link.properties.type)
+                    ) {
+                        link.category = link.properties.type;
+                    }
+                    if (link.properties.created) {
+                        link.properties.created = graph.utils.dateParse(
+                            getDataParseOptions(link.properties.created)
+                        );
+                    }
+                    if (link.properties.modified) {
+                        link.properties.modified = graph.utils.dateParse(
+                            getDataParseOptions(link.properties.modified)
+                        );
+                    }
+                    if (link.properties.status_changed) {
+                        link.properties.status_changed = graph.utils.dateParse(
+                            getDataParseOptions(link.properties.status_changed)
+                        );
+                    }
+                });
+
+                data.nodes.map((node) => {
+                    node.properties = node.properties || {};
+                    if (node.properties.created) {
+                        node.properties.created = graph.utils.dateParse(
+                            getDataParseOptions(node.properties.created)
+                        );
+                    }
+                    if (node.properties.modified) {
+                        node.properties.modified = graph.utils.dateParse(
+                            getDataParseOptions(node.properties.modified)
+                        );
+                    }
+                });
+                // Disable animation in graph for large topologies.
+                // See https://github.com/openwisp/openwisp-network-topology/issues/164
+                if (data.nodes.length > 20) {
+                    graph.config.graphConfig.series.force = {
+                        layoutAnimation: false,
+                    };
+                    graph.config.graphConfig.series.draggable = false;
+                    if (data.nodes.length > 50) {
+                        graph.config.graphConfig.series.force.edgeLength = 250;
+                    }
+                }
+            },
+        });
+
+        const overlay = document.querySelector(el);
+        const createLegend = (key, name) => {
+            const legendItem = document.createElement('p');
+            const legendIcon = document.createElement('span');
+
+            legendIcon.setAttribute('class', name);
+
+            legend.appendChild(legendItem);
+            legendItem.appendChild(legendIcon);
+
+            legendItem.innerHTML += key;
+            return legendItem;
+        };
+        if (!document.getElementById('ninux-legend-style')) {
+            const legendStyle = document.createElement('style');
+            legendStyle.id = 'ninux-legend-style';
+            legendStyle.textContent = `
+                #legend .link-cavo,
+                #legend .link-vpn,
+                #legend .link-misto {
+                    display: inline-block;
+                    height: 5px;
+                    border-bottom-width: 6px;
+                    border-bottom-style: solid;
+                    margin-right: 10px;
+                }
+                #legend .link-cavo { color: #2f80ed; }
+                #legend .link-vpn { color: #a05cd6; border-bottom-style: dashed; border-bottom-width: 3px; }
+                #legend .link-misto { color: #17a2a2; }
+            `;
+            document.head.appendChild(legendStyle);
+        }
+        const legend = document.createElement('div');
+        const legendHeader = document.createElement('h4');
+        legend.setAttribute('id', 'legend');
+        legendHeader.innerHTML = 'Legend';
+        legend.appendChild(legendHeader);
+        legend.appendChild(createLegend('Up / radio', 'link-up'));
+        legend.appendChild(createLegend('Cavo', 'link-cavo'));
+        legend.appendChild(createLegend('VPN', 'link-vpn'));
+        legend.appendChild(createLegend('Misto', 'link-misto'));
+        legend.appendChild(createLegend('Down', 'link-down'));
+        overlay.appendChild(legend);
+
+        const switcher = document.createElement('div');
+        switcher.setAttribute('class', 'njg-switcher');
+        const dateLabel = document.createElement('label');
+        dateLabel.setAttribute('for', 'njg-datepicker');
+        dateLabel.innerHTML = 'Date:';
+        switcher.appendChild(dateLabel);
+        const datePicker = document.createElement('input');
+        datePicker.setAttribute('type', 'text');
+        datePicker.setAttribute('id', 'njg-datepicker');
+        datePicker.setAttribute('data-history-api', history_url);
+        switcher.appendChild(datePicker);
+        overlay.appendChild(switcher);
+
+        socket.onmessage=function(e){
+            const data=JSON.parse(e.data);
+            if(data.type==="broadcast_topology"){
+                const topology=JSON.parse(data.topology);
+                graph.utils.JSONDataUpdate.call(graph, topology);
+            }
+        }
+
+        graph.render();
+        window.initTopologyHistory(django.jQuery);
+        return graph
+
+        // Utility function
+        function getTopologyIdFromUrl() {
+            let topologyId;
+            try {
+                topologyId = /\/((\w{4,12}-?)){5}\//.exec(window.location)[0];
+            } catch (error) {
+                try {
+                    topologyId = /\/(\d+)\//.exec(window.location)[0];
+                } catch (error) {
+                    throw error;
+                }
+            }
+            return topologyId.replace(/\//g, '');
+        }
+    };
+
+</script>

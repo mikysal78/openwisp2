@@ -186,6 +186,25 @@
           < {{ openwisp2_path }}/topology_babel_feed.py > /dev/null 2>&1
       tags: [topology]
 
+    # Visualizzatore delle topology con i link colorati per tipo (cavo, radio,
+    # VPN): override di netjsongraph/netjsongraph-script.html nella DIRS dei
+    # template del progetto, che il loader legge prima delle app. È una copia
+    # del template di openwisp-network-topology 1.3: va riallineata agli upgrade.
+    - name: Cartella dei template Django del progetto
+      ansible.builtin.file:
+        path: "{{ openwisp2_path }}/templates/netjsongraph"
+        state: directory
+        mode: "0755"
+      tags: [topology]
+
+    - name: Template del visualizzatore topology (link colorati per tipo)
+      ansible.builtin.copy:
+        src: files/django-templates/netjsongraph/netjsongraph-script.html
+        dest: "{{ openwisp2_path }}/templates/netjsongraph/netjsongraph-script.html"
+        mode: "0644"
+      notify: restart openwisp2
+      tags: [topology]
+
     # Al boot supervisor (uwsgi/celery) parte in parallelo a InfluxDB, che
     # impiega una decina di secondi ad aprire gli shard. openwisp-monitoring
     # chiama create_database() dentro AppConfig.ready(): se InfluxDB non

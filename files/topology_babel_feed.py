@@ -23,11 +23,12 @@ from swapper import load_model
 TOPOLOGY_LABEL = 'Babel NINUX'
 CACHE = '/opt/openwisp2/topology_babel_cache.json'
 SERVER_ID = 'openwisp@babel'
-# Sulla VPN ZeroTier ogni nodo vede tutti gli altri: includerla trasforma il
-# grafo in una maglia completa che nasconde radio e cavi. La VPN ha già la sua
-# topology (ZeroTier NINUX overlay).
+# Sulla VPN ZeroTier ogni nodo vede tutti gli altri (maglia completa); dove
+# c'è anche radio o cavo vince comunque il più economico, come in Babel, e la
+# VPN resta tra le adiacenze di riserva. Con False i siti collegati solo via
+# VPN restano nodi isolati.
 VPN_IFACES = ('owzt*', 'zt*')
-INCLUDE_VPN = False
+INCLUDE_VPN = True
 BIRDC = 'birdc show status; birdc show babel interfaces; birdc show babel neighbors'
 SSH = [
     'ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
