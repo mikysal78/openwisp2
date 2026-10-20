@@ -417,6 +417,13 @@
     # ------------------------------------------------------------------
     openwisp2_network_topology: true
     openwisp2_firmware_upgrader: true
+    # Upgrader dal branch 1.3 (fa32ad06 = 1.3.0 + "[fix] Relaxed sysupgrade
+    # false-positive matching #477"): OpenWrt 25.12 passa a sysupgrade anche
+    # "add_provisioning": 0, la regex dei falsi positivi della 1.3.0 non lo
+    # riconosce e in LAN segna "failed" un flash riuscito ("ubus call system
+    # sysupgrade ... (Connection failed)"). Tornare al default del ruolo
+    # (~=1.3.0) quando esce la 1.3.1.
+    openwisp2_firmware_upgrader_version: "openwisp-firmware-upgrader @ https://github.com/openwisp/openwisp-firmware-upgrader/archive/fa32ad06081ce6678b072c846bb8c850e37fbe84.tar.gz"
     openwisp2_radius: true          # necessario anche per le WiFi Login Pages
     openwisp2_monitoring: true
 
