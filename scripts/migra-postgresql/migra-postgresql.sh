@@ -24,7 +24,7 @@
 # Il caricamento va fatto PRIMA del playbook: con il database vuoto
 # load_initial_data.py del ruolo creerebbe admin/admin e un'organizzazione.
 #
-# Dopo: mettere ninux_postgresql: true in playbook.yml (altrimenti il prossimo
+# Migrazione fatta il 20/10/2026. Dopo: mettere ninux_postgresql: true in playbook.yml (altrimenti il prossimo
 # deploy torna a SQLite).
 # Ritorno a SQLite: ansible-playbook playbook.yml -e ninux_postgresql=false
 # (il file SQLite non viene toccato; i dati scritti nel frattempo su PostgreSQL
@@ -103,9 +103,16 @@ EOF
 passo "7. playbook con PostgreSQL"
 $SSH "rm -f $OWDIR/openwisp2/settings_migrazione.py"
 FERMI=0
-ansible-playbook playbook.yml -e ninux_postgresql=true
+# Con i programmi supervisor fermi l'handler "Reload uwsgi" del ruolo fallisce
+# (manca uwsgi.pid) e il play si interrompe prima dei post_tasks, lasciando
+# settings.py senza OPENWISP_CONTROLLER_CONTEXT: si riavviano i servizi (ormai
+# su PostgreSQL) e si ripete il playbook. Successo il 20/10/2026.
+if ! ansible-playbook playbook.yml -e ninux_postgresql=true; then
+    $SSH "supervisorctl start all"
+    ansible-playbook playbook.yml -e ninux_postgresql=true
+fi
 # gli handler del ruolo riavviano solo alcuni programmi supervisor
-$SSH "systemctl start cron freeradius; supervisorctl start all; sleep 5; supervisorctl status; systemctl is-active freeradius postgresql
+$SSH "systemctl start cron; systemctl restart freeradius; supervisorctl start all; sleep 5; supervisorctl status; systemctl is-active freeradius postgresql
   grep -A3 '^DATABASES' $OWDIR/openwisp2/settings.py"
 
 passo "fatto: ora mettere ninux_postgresql: true in playbook.yml"
