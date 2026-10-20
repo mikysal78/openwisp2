@@ -150,6 +150,27 @@
       notify: restart openwisp2
       tags: [context]
 
+    # Template "Hotspot uspot 2.4GHz": copia del certificato *.ninux-nnxx.it
+    # per il portale UAM locale, riallineata a quello rinnovato in /etc/ssl/acme
+    # (vedi files/sync_uspot_cert.py). Una volta al giorno basta: il rinnovo
+    # avviene con settimane di anticipo sulla scadenza.
+    - name: Script del certificato del captive uspot
+      ansible.builtin.copy:
+        src: files/sync_uspot_cert.py
+        dest: "{{ openwisp2_path }}/sync_uspot_cert.py"
+        mode: "0644"
+      tags: [uspot_cert]
+
+    - name: Cron per il certificato del captive uspot (ogni giorno)
+      ansible.builtin.cron:
+        name: "sync certificato captive uspot"
+        minute: "41"
+        hour: "4"
+        job: >-
+          {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/sync_uspot_cert.py > /dev/null 2>&1
+      tags: [uspot_cert]
+
     # freeradius (rlm_rest) e le WiFi Login Pages chiamano l'API OpenWISP via i
     # domini pubblici. Se questi risolvono all'IP pubblico, la sorgente delle
     # richieste risulta l'IP pubblico (es. l'IPv6 ::18) e la difesa
@@ -417,6 +438,10 @@
     ninux_gw_interface: "ens18"
 
     openwisp2_default_from_email: "NINUX OpenWISP <controller@ninux-nnxx.it>"
+    # Lingua predefinita del controller: senza LocaleMiddleware Django ignora
+    # l'Accept-Language che le WiFi Login Pages inoltrano, quindi le mail agli
+    # utenti (conferma dell'email, reset password) seguono questa.
+    openwisp2_language_code: "it"
     openwisp2_email_host: "localhost"
     # Stouts.postfix (dipendenza del ruolo) scrive in main.cf il booleano così
     # com'è ("smtp_use_tls = True"), che postfix rifiuta: il client smtp esce

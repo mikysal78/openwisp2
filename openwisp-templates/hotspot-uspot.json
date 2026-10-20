@@ -104,6 +104,13 @@
             "domain": [
                 "wifi.ninux-nnxx.it"
             ]
+        },
+        {
+            "_comment": "Il portale (wifi.ninux-nnxx.it) sull'IP interno del server: dai router NINUX si raggiunge dalla rete interna (mesh/ZeroTier), anche dove l'IP pubblico non e' raggiungibile (C2600 nella LAN del server). Il wlist contiene entrambi gli IP.",
+            "config_name": "domain",
+            "config_value": "wifi_portale",
+            "name": "wifi.ninux-nnxx.it",
+            "ip": "10.27.22.18"
         }
     ],
     "firewall": [
