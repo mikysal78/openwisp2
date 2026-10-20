@@ -225,3 +225,38 @@ Le login pages rispondono su `https://wifi.<dominio>`. L'app
 la clona e builda il ruolo `openwisp.wifi_login_pages` (nulla da fare a mano).
 Per ogni organizzazione serve un file YAML in `owlp_organizations/` con UUID e
 token RADIUS (vedi `owlp_organizations/README.md`), poi rilancia il playbook.
+
+## 6. Log dei router (syslog e netconsole)
+
+Il server raccoglie due flussi di log dai router (Play 5, rsyslog), sotto
+`/opt/router-logs/`:
+
+| Flusso | Sul router | Sul server |
+|---|---|---|
+| syslog (kernel + servizi) | template **Log remoto (syslog)**, UDP 514 | `/opt/router-logs/<hostname>/syslog.log` |
+| netconsole (solo kernel, in tempo reale) | template **Netconsole**, UDP 6666 | `/opt/router-logs/netconsole-<ip sorgente>/netconsole.log` |
+
+netconsole non ha l'header syslog, quindi la cartella prende il nome dall'IP
+con cui il router invia (es. `netconsole-10.27.22.186` per il WRT3200ACM), non
+dal nome. Serve per i blocchi e i kernel panic: i messaggi arrivano fino
+all'ultimo istante, anche quando il syslog non fa in tempo a partire.
+
+Lettura (dal server, `ssh -p 2400 root@10.27.22.18`):
+
+```bash
+ls /opt/router-logs/                                    # un router per cartella
+tail -f /opt/router-logs/X5000R/syslog.log              # in tempo reale
+tail -f /opt/router-logs/netconsole-*/netconsole.log    # kernel di tutti i router
+grep -i "oops\|panic\|watchdog" /opt/router-logs/*/syslog.log
+zgrep -i "panic" /opt/router-logs/C2600/syslog.log.*.gz # giorni precedenti
+```
+
+Rotazione: ogni giorno, oppure oltre 50 MB (controllo ogni ora,
+`/etc/cron.d/router-logs`); si tengono 30 file, i più vecchi compressi.
+
+Il firewall (Play 3) accetta i log solo dalla rete NINUX (10.27.0.0/16 in LAN,
+10.27.255.0/24 via ZeroTier) e dall'IP pubblico del router di confine, con un
+limite di frequenza per sorgente. netconsole sui router richiede il firmware
+NINUX dalla build #34 (`kmod-netconsole` in `base.config`, che porta anche il
+supporto netpoll nel kernel); prima di allora lo script del template scrive
+nel syslog del router che il modulo non è stato attivato.
