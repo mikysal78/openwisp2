@@ -376,6 +376,28 @@
         daemon_reload: true
       tags: [network]
 
+    # OpenWrt 25.12 passa a sysupgrade anche "add_provisioning": 0: la regex
+    # dei falsi positivi dell'upgrader 1.3.0 richiede { "save_partitions": 1 }
+    # e non riconosce piu' "ubus call system sysupgrade ... (Connection
+    # failed)", cosi' in LAN un flash riuscito risulta "failed". fa32ad06 e' la
+    # 1.3.0 piu' il backport della correzione upstream (#477). Dichiara ancora
+    # versione 1.3, quindi il task pip del ruolo lo considera gia' installato:
+    # si controlla la regex nel file e si reinstalla solo se manca.
+    # Da togliere quando esce la 1.3.1 (il ruolo installa ~=1.3.0).
+    - name: Firmware upgrader dal branch 1.3 (correzione falsi positivi sysupgrade)
+      ansible.builtin.shell: |
+        set -e
+        F="$({{ openwisp2_path }}/env/bin/pip show openwisp-firmware-upgrader | sed -n 's/^Location: //p')/openwisp_firmware_upgrader/upgraders/openwrt.py"
+        grep -qF '"save_partitions": 1[^}]*' "$F" && exit 0
+        {{ openwisp2_path }}/env/bin/pip install -q --no-deps --force-reinstall \
+          "openwisp-firmware-upgrader @ {{ ninux_firmware_upgrader_fix_url }}"
+        grep -qF '"save_partitions": 1[^}]*' "$F"
+        supervisorctl restart celery_firmware_upgrader
+        echo aggiornato
+      register: ninux_upgrader_fix
+      changed_when: "'aggiornato' in ninux_upgrader_fix.stdout"
+      tags: [upgrader]
+
   handlers:
     - name: restart openwisp2
       ansible.builtin.command: supervisorctl restart openwisp2 celery celerybeat
@@ -417,13 +439,9 @@
     # ------------------------------------------------------------------
     openwisp2_network_topology: true
     openwisp2_firmware_upgrader: true
-    # Upgrader dal branch 1.3 (fa32ad06 = 1.3.0 + "[fix] Relaxed sysupgrade
-    # false-positive matching #477"): OpenWrt 25.12 passa a sysupgrade anche
-    # "add_provisioning": 0, la regex dei falsi positivi della 1.3.0 non lo
-    # riconosce e in LAN segna "failed" un flash riuscito ("ubus call system
-    # sysupgrade ... (Connection failed)"). Tornare al default del ruolo
-    # (~=1.3.0) quando esce la 1.3.1.
-    openwisp2_firmware_upgrader_version: "openwisp-firmware-upgrader @ https://github.com/openwisp/openwisp-firmware-upgrader/archive/fa32ad06081ce6678b072c846bb8c850e37fbe84.tar.gz"
+    # Upgrader con la correzione dei falsi positivi di sysupgrade: vedi il
+    # post_task "Firmware upgrader dal branch 1.3".
+    ninux_firmware_upgrader_fix_url: "https://github.com/openwisp/openwisp-firmware-upgrader/archive/fa32ad06081ce6678b072c846bb8c850e37fbe84.tar.gz"
     openwisp2_radius: true          # necessario anche per le WiFi Login Pages
     openwisp2_monitoring: true
 
