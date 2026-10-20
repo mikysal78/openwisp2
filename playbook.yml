@@ -136,10 +136,14 @@
         mode: "0644"
       tags: [hosts]
 
+    # Minuti sfasati rispetto agli altri cron (tutti su multipli di 5): con
+    # SQLite le scritture concorrenti danno "database is locked", il task
+    # celery che aggiorna i checksum fallisce e i router appena flashati
+    # restano in loop su "Configuration checksum mismatch".
     - name: Cron per il template "Nomi dei nodi (hosts)" (ogni 15 minuti)
       ansible.builtin.cron:
         name: "sync nomi dei nodi (hosts)"
-        minute: "*/15"
+        minute: "7,22,37,52"
         job: >-
           {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
           < {{ openwisp2_path }}/sync_node_hosts.py > /dev/null 2>&1
