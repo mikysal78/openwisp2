@@ -42,7 +42,7 @@
             "acct_server": "10.27.22.18",
             "acct_port": "1813",
             "acct_secret": "{{ radius_secret }}",
-            "counters": "1",
+            "counters": "0",
             "uam_port": "3990",
             "uam_server": "https://wifi.ninux-nnxx.it/basilicata/",
             "nasid": "{{ name }}",
