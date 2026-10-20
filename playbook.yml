@@ -427,7 +427,7 @@
     # scripts/migra-postgresql.sh. Connessione TCP su localhost perché
     # freeradius non usa il socket unix.
     # ------------------------------------------------------------------
-    ninux_postgresql: false
+    ninux_postgresql: true
     ninux_postgresql_database:
       engine: "django.contrib.gis.db.backends.postgis"
       name: "openwisp2"
