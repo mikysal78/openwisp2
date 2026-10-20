@@ -67,6 +67,60 @@
             name: influxdb
             state: started
           failed_when: false
+
+    # PostgreSQL + PostGIS al posto di SQLite: con SQLite i tanti scrittori
+    # concorrenti (uwsgi, daphne, worker celery, cron, freeradius) davano
+    # "database is locked" e il task celery che aggiorna i checksum delle
+    # config falliva. Il ruolo installa solo il driver: server, utente, database
+    # ed estensione postgis li prepariamo qui. Il passaggio di Django e
+    # freeradius al nuovo database lo decide ninux_postgresql (vedi vars); la
+    # copia dei dati da SQLite si fa a mano, a servizi fermi (scripts/).
+    - name: Installa PostgreSQL e PostGIS
+      ansible.builtin.apt:
+        name:
+          - postgresql
+          - postgresql-17-postgis-3
+          - python3-psycopg2      # per i moduli community.postgresql
+          - acl                   # per become_user: postgres
+      tags: [postgresql]
+
+    - name: Avvia PostgreSQL (su Debian ascolta solo su localhost)
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+      # in check mode PostgreSQL potrebbe non essere ancora installato
+      ignore_errors: "{{ ansible_check_mode }}"
+      tags: [postgresql]
+
+    - name: Utente PostgreSQL di OpenWISP
+      community.postgresql.postgresql_user:
+        name: "{{ ninux_postgresql_database.user }}"
+        password: "{{ ninux_postgresql_database.password }}"
+      become_user: postgres
+      # in check mode PostgreSQL potrebbe non essere ancora installato
+      ignore_errors: "{{ ansible_check_mode }}"
+      tags: [postgresql]
+
+    - name: Database PostgreSQL di OpenWISP
+      community.postgresql.postgresql_db:
+        name: "{{ ninux_postgresql_database.name }}"
+        owner: "{{ ninux_postgresql_database.user }}"
+        encoding: UTF-8
+        template: template0
+      become_user: postgres
+      # in check mode PostgreSQL potrebbe non essere ancora installato
+      ignore_errors: "{{ ansible_check_mode }}"
+      tags: [postgresql]
+
+    - name: Estensione postgis nel database di OpenWISP
+      community.postgresql.postgresql_ext:
+        name: postgis
+        login_db: "{{ ninux_postgresql_database.name }}"
+      become_user: postgres
+      # in check mode PostgreSQL potrebbe non essere ancora installato
+      ignore_errors: "{{ ansible_check_mode }}"
+      tags: [postgresql]
   roles:
     - openwisp.openwisp2
     - openwisp.wifi_login_pages
@@ -354,6 +408,33 @@
     openwisp2_firmware_upgrader: true
     openwisp2_radius: true          # necessario anche per le WiFi Login Pages
     openwisp2_monitoring: true
+
+    # ------------------------------------------------------------------
+    # Database: con ninux_postgresql false resta SQLite (default del ruolo);
+    # true passa Django e freeradius (rlm_sql_postgresql) a PostgreSQL.
+    # Prima di metterlo a true va fatta la copia dei dati, vedi
+    # scripts/migra-postgresql.sh. Connessione TCP su localhost perché
+    # freeradius non usa il socket unix.
+    # ------------------------------------------------------------------
+    ninux_postgresql: false
+    ninux_postgresql_database:
+      engine: "django.contrib.gis.db.backends.postgis"
+      name: "openwisp2"
+      user: "openwisp2"
+      password: "{{ vault_postgresql_password }}"
+      host: "localhost"
+      port: "5432"
+      options: {}
+    ninux_sqlite_database:
+      engine: "openwisp_utils.db.backends.spatialite"
+      name: "{{ openwisp2_path }}/db.sqlite3"
+      user: ""
+      password: ""
+      host: ""
+      port: ""
+      options:
+        timeout: 10
+    openwisp2_database: "{{ ninux_postgresql_database if ninux_postgresql | bool else ninux_sqlite_database }}"
 
     # Immagini OpenWrt custom (build NinuxOpenwrt) esposte dal firmware upgrader:
     # associano ogni file sysupgrade ai modelli di board che lo accettano, cosi'
