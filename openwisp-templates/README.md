@@ -135,8 +135,11 @@ Due alternative — **applicane una sola per device** (stessa subnet
 Cosa adattare:
 
 - **SSID** (`NINUX Free WiFi`) a piacere
-- **`radio0`**: si assume sia la radio 2.4GHz (vero sulla quasi totalità dei
-  device OpenWrt); verifica nella config del singolo device
+- **radio** (uspot): variabile `hotspot_radio`, default `radio0` (2.4GHz sulla
+  quasi totalità dei device OpenWrt). Dove la 2.4GHz è un'altra radio va messa
+  nelle variabili del device: sul WRT3200ACM `radio0` è la 5GHz, quindi
+  `hotspot_radio = radio1`. La radio deve essere attiva (`disabled 0`) sul
+  router: il template non la tocca. Sul chilli resta `radio0` fisso
 - **uspot, regole `dest: wan`**: se sui router la zona di uscita non si chiama
   `wan` (es. zona mesh), correggi `Forward-auth-captive` e `Allow-Whitelist`
 

@@ -19,7 +19,7 @@
             "type": "wireless",
             "disabled": false,
             "wireless": {
-                "radio": "radio0",
+                "radio": "{{ hotspot_radio }}",
                 "mode": "access_point",
                 "ssid": "NINUX Free WiFi",
                 "isolate": true,

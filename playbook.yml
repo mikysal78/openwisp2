@@ -485,7 +485,13 @@
       password: "{{ vault_postgresql_password }}"
       host: "localhost"
       port: "5432"
-      options: {}
+      # Senza SSL: l'upgrader lancia il sysupgrade in un processo figlio
+      # (fork) che eredita la connessione; con SSL, all'uscita del figlio il
+      # padre trova "SSL error: decryption failed or bad record mac" e poi
+      # "connection already closed", e l'operazione resta "in-progress"
+      # (openwisp-firmware-upgrader#244). Su localhost SSL non serve.
+      options:
+        sslmode: "disable"
     ninux_sqlite_database:
       engine: "openwisp_utils.db.backends.spatialite"
       name: "{{ openwisp2_path }}/db.sqlite3"
