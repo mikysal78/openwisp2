@@ -690,10 +690,12 @@
     firewall_router_logs_lan_sources_v4:
       - "10.27.0.0/16"
       - "194.28.98.57"
-    # netconsole solo dai router in debug (oggi il solo x86 ReginaMargherita116)
+    # netconsole da tutti i router (template OpenWISP "Netconsole", modulo nel
+    # firmware dalla build #34): rete NINUX in LAN, il router di confine dalla
+    # /29 pubblica; via ZeroTier valgono firewall_router_logs_vpn_sources_v4.
     firewall_router_logs_netconsole_sources_v4:
+      - "10.27.0.0/16"
       - "194.28.98.57"
-      - "10.27.22.1"
     # Per singola sorgente: basta per uno stack trace, ferma un flood
     firewall_router_logs_rate: "200/second"
     firewall_router_logs_burst: 2000
