@@ -16,3 +16,4 @@ collections:
   - name: community.general
     version: ">=3.6.0"
   - name: ansible.posix
+  - name: community.postgresql
