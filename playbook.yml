@@ -82,6 +82,17 @@
           - postgresql-17-postgis-3
           - python3-psycopg2      # per i moduli community.postgresql
           - acl                   # per become_user: postgres
+          - libpq-dev             # per compilare psycopg2 nel venv
+      tags: [postgresql]
+
+    # Il ruolo installa psycopg2 solo quando il motore è già PostgreSQL, ma
+    # il caricamento dei dati (scripts/migra-postgresql) avviene prima, con
+    # settings.py ancora su SQLite: il driver deve esserci già. Stessa
+    # versione di requirements-postgresql.txt del ruolo.
+    - name: Driver PostgreSQL (psycopg2) nel venv di OpenWISP
+      ansible.builtin.pip:
+        name: "psycopg2>=2.9.12,<2.10"
+        virtualenv: "{{ openwisp2_path }}/env"
       tags: [postgresql]
 
     - name: Avvia PostgreSQL (su Debian ascolta solo su localhost)
