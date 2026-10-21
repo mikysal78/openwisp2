@@ -16,7 +16,9 @@
                         "key": "{{ wifi_password }}",
                         "cipher": "ccmp",
                         "ieee80211w": "{{ wifi_pmf }}"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan0",
@@ -37,7 +39,9 @@
                         "disabled": false,
                         "cipher": "ccmp",
                         "ieee80211w": "{{ wifi_pmf }}"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan1",
@@ -58,7 +62,9 @@
                         "disabled": false,
                         "cipher": "auto",
                         "ieee80211w": "0"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan0_b",
@@ -79,7 +85,9 @@
                         "disabled": false,
                         "cipher": "auto",
                         "ieee80211w": "0"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan1_b",
