@@ -1,3 +1,5 @@
+[🇬🇧 English](README.en.md) | 🇮🇹 Italiano
+
 # OpenWISP2 full + ZeroTier + WiFi Login Pages
 
 Playbook Ansible che installa su un CT (Debian 13 / Ubuntu 22.04+):
@@ -152,61 +154,169 @@ Interfacce del CT: **ens18** = rete di gestione (10.27.22.18, 2a07:7e81:3f1c::18
 
 Il play si applica anche da solo con `--tags firewall`.
 
-## 4e. bird2 / Babel (rete NINUX)
+<a id="babel"></a>
+## 4e. BIRD / Babel (rete NINUX)
 
-> Il server usa `bird2` di Debian (2.17); i router, con il firmware Ninux su
-> OpenWrt 25.12, usano **BIRD 3** (3.2.x). La configurazione Babel è compatibile.
+Il routing tra i nodi NINUX lo fa **Babel** (RFC 8966), un protocollo
+distance-vector pensato per le reti miste radio e cavo. Nelle reti comunitarie
+fa lo stesso lavoro di OLSR o batman-adv. Lo implementa **BIRD**: `bird2` di
+Debian (2.17) sul server, **BIRD 3** (3.3.x) sui router con il firmware NINUX
+su OpenWrt 25.12. La configurazione Babel è la stessa nelle due versioni.
+
+![Topology Babel della rete NINUX in OpenWISP](docs/topology-babel.png)
+
+*La topology «Babel NINUX» del 21/10/2026, disegnata con netjsongraph.js, la
+stessa libreria del visualizzatore di OpenWISP, e con i suoi colori. Sono
+mostrati solo i link attivi. A sinistra la sede di ReginaMargherita116 (cavo e
+radio), a destra i siti remoti, raggiunti solo via VPN.*
+
+### Collegamenti e rxcost
+
+Ogni nodo annuncia la propria LAN (`br-lan`, una /24 per nodo) e impara quelle
+degli altri. Babel sceglie il percorso con la metrica totale più bassa, e gli
+`rxcost` sono fissati in modo che **il cavo vinca sempre sulla radio e la radio sulla
+VPN**:
+
+| Collegamento | Interfaccia (router / server) | Tipo Babel | `rxcost` |
+|---|---|---|---|
+| Cavo (stessa LAN) | `br-lan`, e `wan` dove serve / `ens18`, `ens19` | `wired` | 96 |
+| Radio 802.11s (mesh cifrata SAE) | `br-mesh` / – | `wireless` | 256 e oltre, in base alla qualità del link |
+| VPN ZeroTier | `owzt*` / `zt*` | default | 600 |
+
+Regole comuni a tutti i nodi:
+
+- la **default route non passa mai da Babel**, né annunciata né importata
+  (filtri `net != 0.0.0.0/0` e `net != ::/0`): ogni nodo tiene il proprio
+  gateway verso Internet;
+- i nodi senza una connessione propria imparano la default dai vicini della
+  mesh via **OSPF**, solo su `br-mesh`, con BFD per accorgersi in fretta della
+  caduta di un link radio;
+- `check link yes`: un'interfaccia senza link (o che non esiste ancora, come
+  la VPN prima del join) viene ignorata, e la si può configurare in anticipo.
+
+### Server (Play 4)
 
 Il play `bird` (tag omonimo) installa **bird2** e applica
-`templates/bird.conf.j2`, allineata alla config dei router NINUX:
+`templates/bird.conf.j2`. La configurazione viene validata con `bird -p` prima
+di essere applicata.
 
-- **Babel** gira su `zt*` (la VPN ZeroTier), `ens18` (LAN di gestione, dove
-  peera con i router della stessa L2) e `ens19` (pubblica), con
-  `check link yes` e `rxcost 600`
-- il protocollo **direct `vpn`** annuncia via Babel la subnet ZeroTier
-  (10.27.255.0/24) presa da `zt*` e la LAN di gestione da `ens18`
-- come sui router, la **default route non viene mai né annunciata né importata**
-  via Babel (filtri identici ai router: `net != 0.0.0.0/0` / `net != ::/0`):
-  ogni nodo tiene il suo gateway
-- kernel4/kernel6 con `scan time 20`, `learn yes`, `merge paths yes`; il router
-  id è ricavato da `ens19`
+| Variabile | Valore | Uso |
+|---|---|---|
+| `bird_wan_interface` | `ens19` | da qui si ricava il router id |
+| `bird_vpn_interface` | `zt*` | VPN ZeroTier: Babel con `rxcost 600` |
+| `bird_vpn_subnet_v4` | `10.27.255.0/24` | subnet ZeroTier, annunciata come rete connessa |
+| `bird_direct_extra_interfaces` | `ens18` | anche la LAN di gestione è annunciata come connessa |
+| `bird_babel_interfaces` | `zt*`, `ens19`, `ens18` | interfacce su cui il server parla Babel |
 
-La config viene validata con `bird -p` prima dell'applicazione.
+- il protocollo **direct `vpn`** annuncia la subnet ZeroTier e la LAN di
+  gestione. Originarle sul server le fa arrivare ai router con metrica ~0:
+  i router remoti tornano dal server, invece che da un nodo di test con la WAN
+  sulla stessa LAN;
+- `kernel4`/`kernel6` con `scan time 20`, `learn yes`, `merge paths yes` e
+  `import` chiuso: il server ha già la sua default e non importa nulla dal
+  kernel;
+- il firewall (Play 3) accetta Babel (UDP 6696) solo su `zt*`, `ens18` ed
+  `ens19`.
 
 > NB: l'interfaccia `zt*` del server esiste solo dopo che la VPN è stata creata
-> in OpenWISP e il CT ha joinato la rete ZeroTier; con `check link yes` bird la
-> ignora finché non compare, quindi il play si può lanciare anche prima.
+> in OpenWISP e il CT ha fatto il join alla rete ZeroTier; con `check link yes`
+> bird la ignora finché non compare, quindi il play si può lanciare anche prima.
+
+### Router (template «Bird2 Babel (routing)»)
+
+Sui router la configurazione arriva da OpenWISP con il template **Bird2 Babel
+(routing)** (default e obbligatorio). Il sorgente è
+`openwisp-templates/router-files/bird.conf`; il JSON del template si rigenera
+con `openwisp-templates/build_bird_template.py`, che include anche
+`post-reload-hook`. openwisp-config lo esegue dopo ogni applicazione della
+configurazione: crea le zone firewall «VPN» (`owzt*`) e «mesh» (`br-mesh`),
+senza le quali la policy REJECT in ingresso blocca Babel (adiacenza a senso
+unico, metrica infinita), poi installa o ricarica bird.
+
+- `protocol direct lan`: annuncia la LAN del nodo (`br-lan`);
+- `protocol babel ninux`: interfacce `owzt*` (VPN, `rxcost 600`), `br-lan` (cavo, `rxcost 96`),
+  `br-mesh` (radio) e `{{ babel_wired_extra }}`;
+- `babel_wired_extra` è una variabile del device per i nodi che hanno l'uplink
+  via cavo su un'interfaccia diversa da `br-lan` (es. `wan` per C2600 e
+  WRT3200ACM sulla LAN di ReginaMargherita116). Il default `none-babel` non
+  corrisponde a nessuna interfaccia, quindi altrove il blocco non fa nulla. Non
+  usarla sulla `wan` dei siti remoti, che lì è il modem del provider;
+- `protocol ospf v3 internet_v4`: solo per la default via `br-mesh`;
+  `wan_interface` (default `wan`, dai `default_values` del template) è lo stub
+  da cui un nodo con Internet propria la annuncia.
+
+**Il firmware deve restare allineato**: i file statici di bird nel repo
+[ansible-ninux-openwrt](https://github.com/mikysal78/ansible-ninux-openwrt)
+vanno aggiornati se qui cambiano interfacce o template.
+
+### Verifica
+
+Sul server (`ssh -p 2400 root@10.27.22.18`) o su un router:
+
+```bash
+birdc show babel interfaces     # interfacce Babel, rxcost, numero di vicini
+birdc show babel neighbors      # vicini (fe80::), metrica, interfaccia
+birdc show route protocol ninux # rotte imparate via Babel
+birdc show route for 10.27.1.0/24 all   # da dove passa una LAN
+```
+
+Un vicino che compare in `show babel neighbors` con metrica stabile è un link
+attivo; `Routes 0` indica un vicino visto ma da cui non si impara nulla.
 
 ### Topology Babel in Network Topology
 
-netdiff non ha un parser per Babel/BIRD, e Babel (distance-vector) non dà la
-topologia intera da un solo nodo: ognuno vede solo i propri vicini. Lo script
-`files/topology_babel_feed.py` (cron ogni 5 minuti, tag `topology`) legge
-`birdc show babel interfaces/neighbors` sul server e, via SSH con la chiave
-root del server, su ogni device all'IP di gestione. Unisce poi le tabelle in un
-**NetJSON NetworkGraph** e lo invia alla topology **"Babel NINUX"** (parser
-`NetJsonParser`, strategy `receive`, expiration time 330 s), creata in admin.
+netdiff, la libreria che OpenWISP Network Topology usa per leggere le
+topologie, ha parser per OLSR, batman-adv, BMX6, OpenVPN, WireGuard e
+ZeroTier, ma **non per Babel**. In più Babel è distance-vector: ogni nodo
+conosce solo i propri vicini, quindi la topologia intera si ottiene solo
+unendo quello che vedono tutti. Ne abbiamo discusso con i maintainer in
+[openwisp/netdiff#101](https://github.com/openwisp/netdiff/issues/101): la
+soluzione resta questo script, documentato qui per chi usa BIRD/Babel.
+
+Lo script `files/topology_babel_feed.py` (cron ogni 5 minuti, tag `topology`):
+
+1. esegue `birdc show status; birdc show babel interfaces; birdc show babel
+   neighbors` sul server e, via SSH con la chiave root del server, su ogni
+   device all'IP di gestione (in parallelo, timeout 30 s);
+2. unisce le tabelle dei vicini in un **NetJSON NetworkGraph**;
+3. lo passa a `Topology.receive()` della topology **«Babel NINUX»**.
+
+Come vengono costruiti nodi e link:
 
 - **Nodi**: id `<MAC del device>@babel`. È il formato con cui l'integrazione
   `openwisp_network_topology.integrations.device` (attivata tramite
-  `openwisp2_extra_django_apps`) lega il nodo al device. Il server è il nodo
-  `openwisp@babel`.
+  `openwisp2_extra_django_apps`) lega il nodo al device, così dalla topology si
+  apre la pagina del device. Il server è il nodo `openwisp@babel`. Tra le
+  proprietà: router id e interfacce Babel.
 - **Vicini**: un vicino `fe80::` è attribuito al router che lo dichiara come
-  proprio next hop in `show babel interfaces`. Se un router non risponde, valgono
-  la mappa dell'ultimo giro (`/opt/openwisp2/topology_babel_cache.json`) e
-  l'EUI-64 del MAC del device.
+  proprio next hop v6 in `show babel interfaces`. Se un router non risponde,
+  valgono la mappa dell'ultimo giro (`/opt/openwisp2/topology_babel_cache.json`)
+  e l'EUI-64 del MAC del device. Un `fe80::` che non appartiene a nessun device
+  diventa un nodo «(non gestito)».
 - **Link**: uno per coppia di nodi, con l'adiacenza più economica in ogni verso
-  (come sceglie Babel). Il costo è il peggiore dei due versi; `costs`,
-  `interfaces` e `all_costs` (anche le adiacenze di riserva, es. radio + cavo)
-  sono nelle proprietà.
+  (come sceglie Babel). Il `cost` del link è il peggiore dei due versi; `type` (`cavo`,
+  `radio`, `vpn` o `misto`), `costs`, `interfaces` e `all_costs` (anche le
+  adiacenze di riserva, es. radio + cavo) sono nelle proprietà. Per questo nella
+  foto AP-1 e AP-2, collegati sia via cavo sia via radio, risultano via cavo.
 - **VPN inclusa** (`INCLUDE_VPN = True`): sulla VPN ZeroTier tutti vedono
   tutti, quindi tra i nodi ZeroTier il grafo è una maglia completa (link
-  `vpn`, costo ~600). Dove c'è anche radio o cavo, il link usa l'adiacenza più
+  `vpn`, `cost` ~600). Dove c'è anche radio o cavo il link usa l'adiacenza più
   economica e la VPN resta in `all_costs`. Con `False` i siti collegati solo via
   VPN compaiono come nodi isolati.
 
-Prova senza inviare nulla:
-`BABEL_FEED_DRY_RUN=1 manage.py shell < topology_babel_feed.py`.
+**Creazione della topology** (una volta sola, in admin → Network Topology →
+Topologies → Add): label `Babel NINUX`, parser **NetJSON NetworkGraph**
+(`netdiff.NetJsonParser`), strategy **RECEIVE**, expiration time **330** s
+(poco più dei 5 minuti del cron: un link che non viene più riportato passa a
+down). La chiave della strategy receive non serve, perché lo script scrive
+direttamente nel modello.
+
+Prova senza inviare nulla (stampa il NetworkGraph):
+
+```bash
+cd /opt/openwisp2
+BABEL_FEED_DRY_RUN=1 env/bin/python manage.py shell < topology_babel_feed.py
+```
 
 **Colori nel visualizzatore**: il visualizzatore di OpenWISP colora i link solo
 per stato (up verde, down rosso). Il playbook (tag `topology`) installa una copia
