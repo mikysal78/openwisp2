@@ -13,8 +13,10 @@
                 ],
                 "mesh_fwding": false,
                 "encryption": {
-                    "protocol": "none",
-                    "disabled": true
+                    "protocol": "wpa3_personal",
+                    "key": "{{ mesh_password }}",
+                    "cipher": "ccmp",
+                    "ieee80211w": "2"
                 }
             }
         },

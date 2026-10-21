@@ -59,6 +59,7 @@ t.save()
 |---|---|---|
 | `mesh_subnet1_ip1` | regola subnet-division `mesh` (IPAM `10.27.99.0/24`) | IP mesh univoco per device, assegnato da OpenWISP |
 | `wan_interface` | `default_values` del template bird (`wan`) | solo per lo stub OSPF: cambiala nel device se la WAN ha un altro nome (es. `eth1`, `eth0.2`) |
+| `mesh_password` | `default_values` del template mesh, **solo in OpenWISP** (copia in `secrets.yml`, non versionato) | chiave SAE della mesh 802.11s (`wpa3_personal` → UCI `sae+ccmp`). Su 802.11s OpenWrt usa comunque SAE con qualunque cifratura: WPA2 non esiste. Deve essere uguale su tutti i nodi, altrimenti non si collegano tra loro. Nel repo pubblico non c'è, nemmeno come segnaposto |
 | `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `CHANGEME`) | sovrascrivibili per device; nel repo la password è un segnaposto: quella reale si imposta nel template su OpenWISP o nelle variabili del device |
 | `wifi_encryption`, `wifi_pmf` | `default_values` dei template AP (`wpa2_personal_mixed` / `1`) | cifratura e PMF del SSID principale, sovrascrivibili per device (es. `wpa3_personal` + `2` per WPA3 puro) |
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
