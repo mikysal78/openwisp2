@@ -12,6 +12,7 @@ template dentro OpenWISP.
 | `ap-24ghz.json` | AP WiFi 2.4GHz | no | no |
 | `ap-dualband.json` | AP WiFi 2.4+5GHz (dual band) | no | no |
 | `ap-dualssid.json` | AP WiFi dual SSID 2.4+5GHz | no | no |
+| `ntp-servers.json` | NTP Servers — fuso orario Europe/Rome e server NTP (INRIM). Senza, il router resta in UTC | sì | no |
 | `hotspot-chilli.json` | Hotspot CoovaChilli 2.4GHz — **dismesso**, chilli non è più nel firmware | no | no |
 | `hotspot-uspot.json` | Hotspot uspot 2.4GHz | no | no |
 | `log-remoto.json` | Log remoto (syslog) — invia il syslog al server (`/opt/router-logs/<hostname>/`, Play 5) | sì | no |

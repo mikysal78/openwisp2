@@ -1,0 +1,21 @@
+{
+  "_comment": "Template OpenWISP2: fuso orario Europe/Rome e server NTP (INRIM + pool OpenWrt). Default dal 21/10/2026: senza, netjsonconfig lascia il router in UTC (il firmware non imposta un fuso) e i log locali sono indietro di 1-2 ore. Backend=OpenWRT, Type=Generic.",
+  "backend": "netjsonconfig.OpenWrt",
+  "config": {
+    "ntp": {
+      "server": [
+        "ntp1.inrim.it",
+        "ntp2.inrim.it",
+        "0.openwrt.pool.ntp.org",
+        "1.openwrt.pool.ntp.org",
+        "2.openwrt.pool.ntp.org",
+        "3.openwrt.pool.ntp.org"
+      ],
+      "enabled": true,
+      "enable_server": false
+    },
+    "general": {
+      "timezone": "Europe/Rome"
+    }
+  }
+}
