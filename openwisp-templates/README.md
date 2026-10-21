@@ -16,6 +16,7 @@ template dentro OpenWISP.
 | `hotspot-uspot.json` | Hotspot uspot 2.4GHz | no | no |
 | `log-remoto.json` | Log remoto (syslog) — invia il syslog al server (`/opt/router-logs/<hostname>/`, Play 5) | sì | no |
 | `netconsole.json` | Netconsole — messaggi del kernel in tempo reale al server (`/opt/router-logs/netconsole-<ip>/`), anche prima di un blocco. Serve il firmware dalla build #34. **Non** su ReginaMargherita116 (ha il suo nel template del router di confine) | no | no |
+| `usteer.json` | usteer — coordina gli AP con le stesse reti e sposta i client sull'AP migliore (802.11k/v, disconnessione sotto -85 dBm per gli IoT). Firmware dalla build #36. Solo sui router con più AP sulla stessa LAN (i due Zyxel); con `ap-dualssid.json`, che attiva `ieee80211k` e `bss_transition` | no | no |
 | `router-confine.json` | Router di confine (ReginaMargherita116) — config **completa** del router x86 di confine (WAN, /29, Serveperso, firewall, anti-spoofing…), per ricostruirlo su hardware nuovo. Credenziali = variabili del device `confine_*`. Solo ciò che i template di default non danno | no | no |
 
 Il template **Nomi dei nodi (hosts)** (default, non richiesto) non sta qui: lo

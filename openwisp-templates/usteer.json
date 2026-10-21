@@ -1,0 +1,23 @@
+{
+  "_comment": "Template OpenWISP2: usteer, cioe' il coordinamento degli AP con le stesse reti (i due Zyxel di ReginaMargherita116, stesse SSID e canali). I nodi usteer si parlano sulla LAN e spostano i client sull'AP con il segnale migliore: sotto roam_scan_snr chiedono al client gli AP che vede (802.11k), sotto roam_trigger_snr gli propongono l'altro AP se e' migliore di almeno signal_diff_threshold dB (802.11v, oppure disconnessione dopo roam_kick_delay per chi non lo supporta). min_snr e' la rete di sicurezza per gli IoT senza 802.11k/v (es. Meross): sotto -85 dBm per 30 s il client viene disconnesso e si ricollega all'AP piu' forte. Valori negativi = dBm. usteer e' nel firmware (base.config, build #36); 802.11k/v vanno attivati nel template AP (ieee80211k, bss_transition). Assegnarlo solo ai router con piu' AP sulla stessa rete. Backend=OpenWRT, Type=Generic.",
+  "backend": "netjsonconfig.OpenWrt",
+  "config": {
+    "usteer": [
+      {
+        "config_name": "usteer",
+        "config_value": "usteer1",
+        "network": "lan",
+        "syslog": "1",
+        "debug_level": "2",
+        "ipv6": "0",
+        "local_mode": "0",
+        "roam_scan_snr": "-70",
+        "roam_trigger_snr": "-75",
+        "signal_diff_threshold": "8",
+        "roam_kick_delay": "10000",
+        "min_snr": "-85",
+        "min_snr_kick_delay": "30000"
+      }
+    ]
+  }
+}
