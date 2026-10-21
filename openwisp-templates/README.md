@@ -10,7 +10,7 @@ template dentro OpenWISP.
 | `bird-babel.json` | Bird2 Babel (routing) — nome storico, sui router gira BIRD 3 | sì | sì |
 | `mesh-80211s.json` | Mesh 802.11s 2.4GHz | sì | sì |
 | `ap-24ghz.json` | AP WiFi 2.4GHz | no | no |
-| `ap-dualband.json` | AP WiFi 2.4+5GHz (dual band) | no | no |
+| `ap-dualband.json` | AP WiFi 2.4+5GHz (dual band) — stesso SSID sulle due bande, con 802.11k/v e usteer che propone i 5 GHz ai client vicini (sopra -60 dBm, solo con 802.11v, nessuna disconnessione forzata) | no | no |
 | `ap-dualssid.json` | AP WiFi dual SSID 2.4+5GHz | no | no |
 | `ntp-servers.json` | NTP Servers — fuso orario Europe/Rome e server NTP (INRIM). Senza, il router resta in UTC | sì | no |
 | `hotspot-chilli.json` | Hotspot CoovaChilli 2.4GHz — **dismesso**, chilli non è più nel firmware | no | no |

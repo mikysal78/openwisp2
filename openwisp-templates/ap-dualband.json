@@ -16,7 +16,9 @@
                         "key": "{{ wifi_password }}",
                         "cipher": "ccmp",
                         "ieee80211w": "{{ wifi_pmf }}"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan0",
@@ -36,7 +38,9 @@
                         "key": "{{ wifi_password }}",
                         "cipher": "ccmp",
                         "ieee80211w": "{{ wifi_pmf }}"
-                    }
+                    },
+                    "ieee80211k": true,
+                    "bss_transition": true
                 },
                 "type": "wireless",
                 "name": "wlan1",
@@ -65,6 +69,22 @@
                 "disabled": false,
                 "driver": "mac80211",
                 "band": "5g"
+            }
+        ],
+        "usteer": [
+            {
+                "config_name": "usteer",
+                "config_value": "usteer1",
+                "network": "lan",
+                "syslog": "1",
+                "debug_level": "2",
+                "ipv6": "0",
+                "local_mode": "0",
+                "band_steering_interval": "120000",
+                "band_steering_min_snr": "-60",
+                "roam_scan_snr": "0",
+                "roam_trigger_snr": "0",
+                "min_snr": "0"
             }
         ]
     },
