@@ -1,0 +1,155 @@
+#!/usr/bin/python3 -I
+# {{ ansible_managed }}
+"""Rotazione dei log dei router NINUX (eseguito da root ogni ora, cron).
+
+I valori (frequenza, dimensione massima, giorni di conservazione, numero di
+file) si cambiano dalla pagina di admin di OpenWISP «Router log rotation»
+(modulo openwisp-netconsole), che li scrive in SETTINGS_FILE. Quel file sta in
+una directory di OpenWISP (www-data), quindi qui e' un input non fidato:
+- si apre senza seguire symlink e solo se e' un file regolare, letto fino a
+  4 KB;
+- si accettano solo gli interi negli intervalli e le frequenze dell'elenco
+  (gli stessi limiti di openwisp_netconsole/rotation.py); con un valore non
+  valido si usano quelli del playbook e l'errore finisce nell'esito;
+- la configurazione di logrotate nasce da un modello fisso in cui entrano solo
+  quei numeri e una delle tre parole ammesse.
+L'esito (STATUS_FILE, in una directory di root) lo mostra la pagina di admin.
+
+Uso: router-logs-rotation [--config-only]
+"""
+
+import json
+import os
+import stat
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+
+SETTINGS_FILE = "{{ router_logs_rotation_settings_file }}"
+STATUS_FILE = "{{ router_logs_rotation_status_file }}"
+CONF_FILE = "/etc/logrotate-router-logs.conf"
+STATE_FILE = "/var/lib/logrotate/router-logs.status"
+LOG_GLOB = "{{ router_logs_dir }}/*/*.log"
+MAX_FILE_SIZE = 4096
+
+# valori del playbook (Play 5): si usano se la pagina di admin non ne ha scritti
+DEFAULTS = {
+    "frequency": "{{ router_logs_frequency }}",
+    "max_size_mb": {{ router_logs_max_size_mb | int }},
+    "retention_days": {{ router_logs_retention_days | int }},
+    "max_files": {{ router_logs_max_files | int }},
+}
+FREQUENCIES = ("daily", "weekly", "monthly")
+LIMITS = {
+    "max_size_mb": (5, 100),
+    "retention_days": (7, 90),
+    "max_files": (7, 60),
+}
+
+# {% raw %} (graffe di str.format, non di Jinja)
+CONF = """# Generato da /usr/local/sbin/router-logs-rotation: non modificare a mano.
+# I valori si cambiano dalla pagina di admin di OpenWISP «Router log rotation».
+# NON sta in /etc/logrotate.d: lo esegue ogni ora /etc/cron.d/router-logs con
+# uno state file proprio, cosi' maxsize interviene entro un'ora e nessun router
+# puo' riempire /opt (dove c'e' anche InfluxDB).
+{glob} {{
+    {frequency}
+    maxsize {max_size_mb}M
+    rotate {max_files}
+    maxage {retention_days}
+    compress
+    delaycompress
+    missingok
+    notifempty
+    sharedscripts
+    postrotate
+        /usr/lib/rsyslog/rsyslog-rotate
+    endscript
+}}
+"""
+# {% endraw %}
+
+
+def validate(values):
+    if not isinstance(values, dict):
+        raise ValueError("non e' un oggetto JSON")
+    clean = {}
+    if values.get("frequency") not in FREQUENCIES:
+        raise ValueError("frequency non valida")
+    clean["frequency"] = values["frequency"]
+    for name, (low, high) in LIMITS.items():
+        value = values.get(name)
+        if isinstance(value, bool) or not isinstance(value, int) or not low <= value <= high:
+            raise ValueError("%s non valido" % name)
+        clean[name] = value
+    return clean
+
+
+def read_settings():
+    """(valori, origine, errore): origine 'admin' o 'playbook'."""
+    try:
+        fd = os.open(SETTINGS_FILE, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except FileNotFoundError:
+        return dict(DEFAULTS), "playbook", ""
+    except OSError as e:
+        return dict(DEFAULTS), "playbook", "file delle impostazioni non leggibile (%s)" % e.strerror
+    with os.fdopen(fd, "rb") as f:
+        if not stat.S_ISREG(os.fstat(f.fileno()).st_mode):
+            return dict(DEFAULTS), "playbook", "il file delle impostazioni non e' un file regolare"
+        data = f.read(MAX_FILE_SIZE + 1)
+    try:
+        if len(data) > MAX_FILE_SIZE:
+            raise ValueError("file troppo grande")
+        return validate(json.loads(data)), "admin", ""
+    except ValueError as e:
+        # il contenuto non si riporta: e' input non fidato
+        return dict(DEFAULTS), "playbook", "impostazioni non valide (%s): usati i valori del playbook" % e
+
+
+def write_atomic(path, data, mode=0o644):
+    fd, tmp = tempfile.mkstemp(prefix=".tmp-", dir=os.path.dirname(path))
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(data)
+        os.chmod(tmp, mode)
+        os.replace(tmp, path)
+    except BaseException:
+        os.unlink(tmp)
+        raise
+
+
+def main():
+    values, source, error = read_settings()
+    conf = CONF.format(glob=LOG_GLOB, **values)
+    try:
+        with open(CONF_FILE) as f:
+            current = f.read()
+    except OSError:
+        current = None
+    if conf != current:
+        write_atomic(CONF_FILE, conf)
+    rc = 0
+    if "--config-only" not in sys.argv[1:]:
+        result = subprocess.run(
+            ["/usr/sbin/logrotate", "--state", STATE_FILE, CONF_FILE],
+            capture_output=True,
+            text=True,
+        )
+        rc = result.returncode
+        if rc:
+            error = (error + "; " if error else "") + "logrotate: " + result.stderr.strip()[-300:]
+    status = {
+        "applied": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "settings": values,
+        "source": source,
+        "error": error,
+    }
+    write_atomic(STATUS_FILE, json.dumps(status, sort_keys=True) + "\n")
+    if error:
+        print(error, file=sys.stderr)
+    return 1 if rc else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

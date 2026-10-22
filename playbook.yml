@@ -541,6 +541,14 @@
     openwisp2_extra_django_apps:
       - "openwisp_controller.subnet_division"
       - "openwisp_network_topology.integrations.device"
+      # Scheda «Netconsole» nella pagina del device (log del kernel dei router
+      # da /opt/router-logs, Play 5). Deve restare dopo controller e monitoring:
+      # estende l'admin del device che registrano loro.
+      - "openwisp_netconsole"
+
+    openwisp2_extra_python_packages:
+      - bpython
+      - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.0"
 
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
@@ -824,9 +832,23 @@
     router_logs_dir: /opt/router-logs
     router_logs_syslog_port: 514
     router_logs_netconsole_port: 6666
-    router_logs_retention_days: 30
-    # Oltre questa dimensione il file ruota anche prima del giorno
-    router_logs_max_size: 50M
+    # Rotazione: valori di partenza. Dopo l'installazione si cambiano dalla
+    # pagina di admin di OpenWISP «Router log rotation» (openwisp-netconsole);
+    # rilanciare il playbook non li sovrascrive.
+    router_logs_frequency: daily        # daily, weekly o monthly
+    router_logs_retention_days: 15      # conservazione massima (giorni)
+    router_logs_max_files: 30           # file ruotati massimi per log
+    # Oltre questa dimensione (MB) il file ruota anche prima del giorno
+    router_logs_max_size_mb: 50
+    # Scambio con la pagina di admin: OpenWISP (www-data) scrive i valori nella
+    # sua directory, lo script di root scrive l'esito nella propria. Sono i
+    # default di openwisp-netconsole (OPENWISP_NETCONSOLE_ROTATION_*).
+    router_logs_rotation_settings_file: /var/lib/openwisp-netconsole/rotation.json
+    router_logs_rotation_status_file: /var/lib/router-logs-rotation/status.json
+    # Gruppo dei log dei router: sola lettura per OpenWISP (www-data), che li
+    # mostra nella scheda «Netconsole» del device. Non adm, che aprirebbe a
+    # OpenWISP tutti i log di sistema.
+    router_logs_group: router-logs
 
   tasks:
     - name: Installa rsyslog e logrotate
@@ -836,13 +858,35 @@
           - logrotate
         state: present
 
+    - name: Gruppo dei log dei router
+      ansible.builtin.group:
+        name: "{{ router_logs_group }}"
+        system: true
+
+    # Il gruppo vale per i processi avviati dopo: uwsgi va riavviato
+    - name: OpenWISP (www-data) legge i log dei router
+      ansible.builtin.user:
+        name: www-data
+        groups: "{{ router_logs_group }}"
+        append: true
+      notify: restart openwisp2 router_logs
+
     - name: Directory dei log dei router
       ansible.builtin.file:
         path: "{{ router_logs_dir }}"
         state: directory
         owner: root
-        group: adm
+        group: "{{ router_logs_group }}"
         mode: "0750"
+
+    # Directory e file creati prima del gruppo dedicato erano root:adm
+    - name: Log esistenti al gruppo dei log dei router
+      ansible.builtin.command:
+        cmd: >-
+          find {{ router_logs_dir }} -mindepth 1 -group adm -print
+          -exec chgrp -h {{ router_logs_group }} {} +
+      register: router_logs_chgrp
+      changed_when: router_logs_chgrp.stdout | length > 0
 
     - name: Configurazione rsyslog per i router
       ansible.builtin.template:
@@ -851,11 +895,49 @@
         mode: "0644"
       notify: restart rsyslog
 
-    - name: Rotazione dei log dei router
-      ansible.builtin.template:
-        src: templates/logrotate-router-logs.j2
-        dest: /etc/logrotate-router-logs.conf
+    - name: Directory delle impostazioni di rotazione (scritte da OpenWISP)
+      ansible.builtin.file:
+        path: "{{ router_logs_rotation_settings_file | dirname }}"
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: "0755"
+
+    - name: Directory dell'esito della rotazione (scritto da root)
+      ansible.builtin.file:
+        path: "{{ router_logs_rotation_status_file | dirname }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    # Solo se manca: dopo la prima installazione i valori sono quelli scelti
+    # nella pagina di admin e il playbook non li tocca
+    - name: Valori di partenza della rotazione
+      ansible.builtin.copy:
+        dest: "{{ router_logs_rotation_settings_file }}"
+        owner: www-data
+        group: www-data
         mode: "0644"
+        force: false
+        content: "{{ {'frequency': router_logs_frequency,
+                      'max_size_mb': router_logs_max_size_mb | int,
+                      'retention_days': router_logs_retention_days | int,
+                      'max_files': router_logs_max_files | int} | to_json }}\n"
+
+    - name: Script di rotazione dei log dei router
+      ansible.builtin.template:
+        src: templates/router-logs-rotation.py.j2
+        dest: /usr/local/sbin/router-logs-rotation
+        owner: root
+        group: root
+        mode: "0755"
+      register: router_logs_rotation_script
+
+    - name: Genera la configurazione di logrotate
+      ansible.builtin.command: /usr/local/sbin/router-logs-rotation --config-only
+      when: router_logs_rotation_script.changed
+      changed_when: true
 
     # La prima versione stava in /etc/logrotate.d (solo rotazione giornaliera)
     - name: Rimuovi la vecchia configurazione di rotazione giornaliera
@@ -869,7 +951,7 @@
         mode: "0644"
         content: |
           # Gestito da Ansible (playbook openwisp2, Play 5): non modificare a mano
-          17 * * * * root /usr/sbin/logrotate --state /var/lib/logrotate/router-logs.status /etc/logrotate-router-logs.conf
+          17 * * * * root /usr/local/sbin/router-logs-rotation
 
     - name: Abilita e avvia rsyslog
       ansible.builtin.systemd:
@@ -882,4 +964,8 @@
     # rsyslog partirebbe ignorando le regole, anche quelle del server.
     - name: restart rsyslog
       ansible.builtin.shell: rsyslogd -N1 -f /etc/rsyslog.conf && systemctl restart rsyslog
+      changed_when: true
+
+    - name: restart openwisp2 router_logs
+      ansible.builtin.command: supervisorctl restart openwisp2
       changed_when: true
