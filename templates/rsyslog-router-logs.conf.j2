@@ -4,7 +4,7 @@
 # Due ingressi UDP, ciascuno con il proprio ruleset: i messaggi dei router NON
 # finiscono in /var/log/syslog del server.
 #   {{ router_logs_syslog_port }}/udp  syslog remoto di OpenWrt (logd: system.log_ip) -> <hostname>/syslog.log
-#   {{ router_logs_netconsole_port }}/udp netconsole del kernel (testo grezzo, senza header syslog) -> <ip sorgente>/netconsole.log
+#   {{ router_logs_netconsole_port }}/udp netconsole del kernel (senza header syslog) -> netconsole-<nome del device>/netconsole.log
 # Chi può inviare lo decide nftables (solo 10.27.0.0/16).
 
 module(load="imudp")
@@ -13,27 +13,52 @@ module(load="imudp")
 # con "/" o ".." esca dalla directory dei log.
 template(name="RouterSyslogFile" type="string"
          string="{{ router_logs_dir }}/%HOSTNAME:::secpath-replace%/syslog.log")
-# netconsole non ha header syslog (niente hostname): si usa l'IP sorgente.
+# netconsole non ha header syslog. Il template OpenWISP «Netconsole» lo usa in
+# formato esteso con l'userdata ninux_node (nome del device):
+#   <livello>,<seq>,<µs dall'avvio>,<flag>[,ncfrag=..];<testo>\n SUBSYSTEM=..\n ninux_node=<nome>\n
+# (rsyslog riceve gli a capo come "#012"). Il file va in netconsole-<nome>/,
+# che non dipende dall'IP con cui il router esce (cambia tra LAN, wan, mesh e
+# ZeroTier). Senza ninux_node (firmware senza NETCONSOLE_DYNAMIC, formato
+# semplice, frammenti di messaggi lunghi tranne l'ultimo) si usa l'IP sorgente.
+# Il nome lo dichiara il router, come HOSTNAME nel syslog: chi può inviare
+# (nftables, solo 10.27.0.0/16) può anche scrivere nel file di un altro nodo.
+# La regex ammette solo [A-Za-z0-9] all'inizio e [-A-Za-z0-9_.] dopo (max 64)
+# e secpath-replace resta come seconda difesa: il nome non esce dalla directory.
 template(name="RouterNetconsoleFile" type="string"
-         string="{{ router_logs_dir }}/netconsole-%FROMHOST-IP%/netconsole.log")
+         string="{{ router_logs_dir }}/netconsole-%$.ncnode:::secpath-replace%/netconsole.log")
 # Righe con l'ora di ricezione del server: l'orologio di un router che si sta
 # bloccando non è affidabile.
 template(name="RouterLine" type="string"
          string="%timegenerated:::date-rfc3339% %HOSTNAME% %syslogtag%%msg:::sp-if-no-1st-sp%%msg:::drop-last-lf%\n")
-template(name="RouterRawLine" type="string"
-         string="%timegenerated:::date-rfc3339% %rawmsg:::drop-last-lf%\n")
+template(name="RouterNetconsoleLine" type="string"
+         string="%timegenerated:::date-rfc3339% %$.nctext%\n")
 
 ruleset(name="router-syslog") {
     action(type="omfile" dynaFile="RouterSyslogFile" template="RouterLine"
            dynaFileCacheSize="100" dirCreateMode="0750" fileCreateMode="0640"
-           fileOwner="root" fileGroup="adm" dirOwner="root" dirGroup="adm")
+           fileOwner="root" fileGroup="{{ router_logs_group }}" dirOwner="root" dirGroup="{{ router_logs_group }}")
     stop
 }
 
 ruleset(name="router-netconsole") {
-    action(type="omfile" dynaFile="RouterNetconsoleFile" template="RouterRawLine"
+    set $.ncnode = re_extract($rawmsg, '#012 ninux_node=([A-Za-z0-9][-A-Za-z0-9_.]{0,63})(#012|$)', 0, 1, "");
+    if $.ncnode == "" then set $.ncnode = $fromhost-ip;
+    # formato esteso: il tempo dall'avvio torna "[  sec.µs]" come nel formato
+    # semplice; il testo arriva fino al primo a capo (le righe " CHIAVE=valore"
+    # dopo sono info del device e userdata)
+    set $.ncus = re_extract($rawmsg, "^[0-9]+,[0-9]+,([0-9]+),[^;]*;", 0, 1, "");
+    if $.ncus != "" then {
+        set $.ncsec = "     " & ($.ncus / 1000000);
+        set $.ncfrac = "00000" & ($.ncus % 1000000);
+        set $.nctext = "[" & substring($.ncsec, strlen($.ncsec) - 5, 5) & "." &
+                       substring($.ncfrac, strlen($.ncfrac) - 6, 6) & "] " &
+                       re_extract($rawmsg, "^[^;]*;(([^#]|#[^0]|#0[^1]|#01[^2])*)", 0, 1, "");
+    } else {
+        set $.nctext = $rawmsg;
+    }
+    action(type="omfile" dynaFile="RouterNetconsoleFile" template="RouterNetconsoleLine"
            dynaFileCacheSize="20" dirCreateMode="0750" fileCreateMode="0640"
-           fileOwner="root" fileGroup="adm" dirOwner="root" dirGroup="adm")
+           fileOwner="root" fileGroup="{{ router_logs_group }}" dirOwner="root" dirGroup="{{ router_logs_group }}")
     stop
 }
 

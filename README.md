@@ -347,12 +347,25 @@ Il server raccoglie due flussi di log dai router (Play 5, rsyslog), sotto
 | Flusso | Sul router | Sul server |
 |---|---|---|
 | syslog (kernel + servizi) | template **Log remoto (syslog)**, UDP 514 | `/opt/router-logs/<hostname>/syslog.log` |
-| netconsole (solo kernel, in tempo reale) | template **Netconsole**, UDP 6666 | `/opt/router-logs/netconsole-<ip sorgente>/netconsole.log` |
+| netconsole (solo kernel, in tempo reale) | template **Netconsole**, UDP 6666 | `/opt/router-logs/netconsole-<nome del device>/netconsole.log` |
 
-netconsole non ha l'header syslog, quindi la cartella prende il nome dall'IP
-con cui il router invia (es. `netconsole-10.27.22.186` per il WRT3200ACM), non
-dal nome. Serve per i blocchi e i kernel panic: i messaggi arrivano fino
-all'ultimo istante, anche quando il syslog non fa in tempo a partire.
+netconsole serve per i blocchi e i kernel panic: i messaggi arrivano fino
+all'ultimo istante, anche quando il syslog non fa in tempo a partire. Non ha
+l'header syslog: il template lo usa in formato esteso e aggiunge a ogni
+messaggio l'userdata `ninux_node` con il nome del device in OpenWISP, che
+rsyslog usa per la cartella. Così i log di un router restano insieme anche
+quando cambia l'IP con cui esce (LAN, `wan`, mesh, ZeroTier). L'userdata
+richiede il firmware dalla build #37 (`kmod-netconsole` compilato con
+`NETCONSOLE_DYNAMIC`); i messaggi senza nome (firmware precedente, frammenti
+di messaggi lunghi) vanno in `netconsole-<ip sorgente>/`.
+
+Gli stessi log si leggono da OpenWISP, nella scheda **Netconsole** della
+pagina del device: modulo [openwisp-netconsole](https://github.com/mikysal78/openwisp-netconsole),
+installato dal Play 1 (`openwisp2_extra_python_packages` e
+`openwisp2_extra_django_apps`). Mostra la cartella per nome e quelle per IP del
+device (IP di gestione e ultimo IP), si aggiorna da sola e permette di scaricare
+i file ruotati. OpenWISP (`www-data`) legge i log tramite il gruppo
+`router-logs` (Play 5), in sola lettura.
 
 Lettura (dal server, `ssh -p 2400 root@10.27.22.18`):
 
@@ -365,7 +378,13 @@ zgrep -i "panic" /opt/router-logs/C2600/syslog.log.*.gz # giorni precedenti
 ```
 
 Rotazione: ogni giorno, oppure oltre 50 MB (controllo ogni ora,
-`/etc/cron.d/router-logs`); si tengono 30 file, i più vecchi compressi.
+`/etc/cron.d/router-logs`). Si conservano al massimo 15 giorni e 30 file, i più
+vecchi compressi. Sono i valori di partenza del Play 5: si cambiano da OpenWISP
+nella pagina **Monitoring → Rotazione dei log dei router** (solo superuser),
+entro intervalli fissi (5–100 MB, 7–90 giorni, 7–60 file). OpenWISP salva solo
+un JSON. Lo script di root `/usr/local/sbin/router-logs-rotation` lo ricontrolla
+ogni ora, genera `/etc/logrotate-router-logs.conf` e lancia logrotate; il
+playbook rilanciato non sovrascrive i valori scelti.
 
 Il firewall (Play 3) accetta i log solo dalla rete NINUX (10.27.0.0/16 in LAN,
 10.27.255.0/24 via ZeroTier) e dall'IP pubblico del router di confine, con un
