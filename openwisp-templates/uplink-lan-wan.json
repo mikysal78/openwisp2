@@ -1,0 +1,40 @@
+{
+  "_comment": "Template OpenWISP2: router collegati alla LAN NINUX di ReginaMargherita116 (10.27.22.0/24) dalla porta wan invece che da una porta lan (WRT3200ACM, C2600, X5000R dal 22/10/2026). La zona firewall wan blocca l'input: apre Babel (UDP 6696 da link-local) e SSH dalla LAN, mette l'agente in gestione sulla wan (l'hotplug di openwisp-config confronta il nome logico dell'interfaccia) e attiva Babel via cavo sulla wan con babel_wired_extra. Il default della variabile prevale su quello di Bird2 Babel (none-babel) perche' questo template viene dopo: assegnarlo dopo Bird2, oppure mettere babel_wired_extra=wan tra le variabili del device. NON sui siti remoti, dove la wan e' il modem del provider. Backend=OpenWRT, Type=Generic.",
+  "backend": "netjsonconfig.OpenWrt",
+  "config": {
+    "openwisp": [
+      {
+        "config_name": "controller",
+        "config_value": "http",
+        "management_interface": "wan"
+      }
+    ],
+    "firewall": [
+      {
+        "config_name": "rule",
+        "config_value": "allow_ssh_lan_ninux",
+        "name": "Allow-SSH-LAN-NINUX",
+        "src": "wan",
+        "src_ip": "10.27.22.0/24",
+        "proto": "tcp",
+        "dest_port": "22",
+        "family": "ipv4",
+        "target": "ACCEPT"
+      },
+      {
+        "config_name": "rule",
+        "config_value": "allow_babel_wan_lan",
+        "name": "Allow-Babel-wan-LAN-NINUX",
+        "src": "wan",
+        "src_ip": "fe80::/10",
+        "proto": "udp",
+        "dest_port": "6696",
+        "family": "ipv6",
+        "target": "ACCEPT"
+      }
+    ]
+  },
+  "default_values": {
+    "babel_wired_extra": "wan"
+  }
+}
