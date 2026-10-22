@@ -596,7 +596,7 @@
 
     openwisp2_extra_python_packages:
       - bpython
-      - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.1"
+      - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.2"
 
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
