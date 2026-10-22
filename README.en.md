@@ -238,9 +238,12 @@ metric), then installs or reloads bird.
 - `protocol direct lan`: announces the node's LAN (`br-lan`);
 - `protocol babel ninux`: interfaces `owzt*` (VPN, `rxcost 600`), `br-lan` (cable, `rxcost 96`),
   `br-mesh` (radio) and `{{ babel_wired_extra }}`;
-- `babel_wired_extra` is a device variable for nodes whose wired uplink is on an
-  interface other than `br-lan` (e.g. `wan` for C2600 and WRT3200ACM on the
-  ReginaMargherita116 LAN). The default `none-babel` matches no interface, so
+- `babel_wired_extra` is for nodes whose wired uplink is on an interface other
+  than `br-lan`. Routers connected to the ReginaMargherita116 LAN through their
+  `wan` port (WRT3200ACM, C2600, X5000R) use the **Uplink LAN su wan** template
+  (`openwisp-templates/uplink-lan-wan.json`): it sets the variable to `wan`,
+  allows Babel and SSH from the LAN in the `wan` zone and puts the agent's
+  management on `wan`. The default `none-babel` matches no interface, so
   elsewhere the block does nothing. Do not use it for the `wan` of remote sites,
   which there is the ISP modem;
 - `protocol ospf v3 internet_v4`: only for the default route via `br-mesh`;

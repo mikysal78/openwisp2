@@ -236,11 +236,14 @@ unico, metrica infinita), poi installa o ricarica bird.
 - `protocol direct lan`: annuncia la LAN del nodo (`br-lan`);
 - `protocol babel ninux`: interfacce `owzt*` (VPN, `rxcost 600`), `br-lan` (cavo, `rxcost 96`),
   `br-mesh` (radio) e `{{ babel_wired_extra }}`;
-- `babel_wired_extra` è una variabile del device per i nodi che hanno l'uplink
-  via cavo su un'interfaccia diversa da `br-lan` (es. `wan` per C2600 e
-  WRT3200ACM sulla LAN di ReginaMargherita116). Il default `none-babel` non
-  corrisponde a nessuna interfaccia, quindi altrove il blocco non fa nulla. Non
-  usarla sulla `wan` dei siti remoti, che lì è il modem del provider;
+- `babel_wired_extra` serve ai nodi che hanno l'uplink via cavo su
+  un'interfaccia diversa da `br-lan`. I router collegati alla LAN di
+  ReginaMargherita116 dalla porta `wan` (WRT3200ACM, C2600, X5000R) hanno il
+  template **Uplink LAN su wan** (`openwisp-templates/uplink-lan-wan.json`): la
+  imposta a `wan`, apre Babel e SSH dalla LAN nella zona `wan` e mette l'agente
+  in gestione sulla `wan`. Il default `none-babel` non corrisponde a nessuna
+  interfaccia, quindi altrove il blocco non fa nulla. Non usarla sulla `wan` dei
+  siti remoti, che lì è il modem del provider;
 - `protocol ospf v3 internet_v4`: solo per la default via `br-mesh`;
   `wan_interface` (default `wan`, dai `default_values` del template) è lo stub
   da cui un nodo con Internet propria la annuncia.
