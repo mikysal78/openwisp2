@@ -619,7 +619,7 @@
       - bpython
       - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.2"
       - "{{ openwisp_luci_package }}"
-    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.1.0"
+    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.1.1"
 
     # Viste del proxy LuCI (login monouso, auth_request di nginx)
     openwisp2_extra_urls:
