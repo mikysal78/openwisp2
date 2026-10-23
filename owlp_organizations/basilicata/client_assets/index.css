@@ -190,3 +190,14 @@ div.error {
 .side-column {
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
+
+/* Sostenitore nel footer (Roma Club Matera) */
+.sponsor {
+  margin-top: 12px;
+  font-size: 0.85em;
+}
+.sponsor img {
+  height: 80px;
+  width: auto;
+  margin-top: 6px;
+}

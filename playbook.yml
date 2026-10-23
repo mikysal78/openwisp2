@@ -580,6 +580,11 @@
       # {{ mesh_subnet1_ip1 }} / {{ radius_secret }} non validano (HTTP 400).
       - |
         OPENWISP_CONTROLLER_CONTEXT = NETJSONCONFIG_CONTEXT
+      # Logo NINUX nelle mail (reset della password, notifiche) al posto di
+      # quello di OpenWISP: PNG perché molti client di posta non mostrano gli
+      # SVG; lo serve la pagina wifi (owlp_organizations/basilicata/client_assets)
+      - |
+        OPENWISP_EMAIL_LOGO = "https://wifi.ninux-nnxx.it/assets/basilicata/ninux-logo-email.png"
 
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
     # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)

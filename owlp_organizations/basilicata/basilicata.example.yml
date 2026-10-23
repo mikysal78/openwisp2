@@ -61,21 +61,25 @@ client:
     footer:
       links:
         - text:
-            en: "link-1"
-          url: "https://link-1.com"
+            en: "WebSite"
+            it: "Sito Web"
+          url: "https://ninux-nnxx.it"
           authenticated: false
         - text:
-            en: "link-2"
-          url: "https://link-2.com"
+            en: "WebSite"
+            it: "Sito Web"
+          url: "https://ninux-nnxx.it"
           authenticated: true
           verified: false
         - text:
-            en: "link-3"
-          url: "https://link-3.com"
+            en: "WebSite"
+            it: "Sito Web"
+          url: "https://ninux-nnxx.it"
           authenticated: true
           verified: true
       after_html:
-        en: "Copyright"
+        en: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it<div class="sponsor">Supported by<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
+        it: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it<div class="sponsor">Con il sostegno di<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
 
     registration_form:
       auto_select_first_plan: false
@@ -218,5 +222,7 @@ client:
 
   privacy_policy:
     en: "privacy-en.md"
+    it: "privacy-it.md"
   terms_and_conditions:
     en: "terms-en.md"
+    it: "terms-it.md"

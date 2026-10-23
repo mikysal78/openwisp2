@@ -1,17 +1,22 @@
 # Terms and Conditions
 
-- By using or visiting the Openwisp-wifi-login-pages, you signify your agreement
-  to these terms and conditions (the "Terms of Service") and the Privacy policy.
+The "NINUX Free WiFi" service is offered free of charge by NINUX Basilicata
+([ninux-nnxx.it](https://ninux-nnxx.it)), a non-profit community network.
 
-- In order to access the wifi service, you need to be a registered user of the
-  default organization.
+- By signing up and using the service you accept these terms and the privacy
+  policy.
+- To use the service you must sign up with a valid email address. The account is
+  personal: do not share your credentials. You are responsible for the use of
+  your account.
+- Use the service lawfully and with respect for other users. It must not be used
+  for illegal activities, spam, attacks on or disruption of other systems, or to
+  overload the network.
+- The service is provided "as is", with no guarantee of availability, speed or
+  continuity. NINUX Basilicata is not liable for damages resulting from the use
+  or interruption of the service.
+- NINUX Basilicata may suspend or close an account, or block a device, if these
+  terms are violated or for technical or security reasons, even without notice.
+- These terms may be updated; the version in force is always the one published
+  on this page.
 
-- Openwisp-wifi-login-pages is not liable for any unauthorized use of your account,
-  you may be liable for the losses of the services or others due to such unauthorized use.
-
-- Openwisp reserves the right to discontinue or disallow any user, group or any
-  specific IP (internal or external) from using its services without any prior notice.
-
-- Violating the above mentioned Terms and Conditions may result in the termination
-  of the particular user account or the particular IP address from accessing
-  Openwisp-wifi-login-pages and using its services in the future.
+Questions or reports: [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it).
