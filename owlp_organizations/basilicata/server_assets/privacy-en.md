@@ -1,15 +1,43 @@
 # Privacy Policy
 
-- Your privacy is important to us. It is Openwisp's policy to respect your privacy regarding any information we may collect from you across openwisp-wifi-login-pages.
+The "NINUX Free WiFi" service is run by NINUX Basilicata
+([ninux-nnxx.it](https://ninux-nnxx.it)). For any request about your data write
+to [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it).
 
-- We only ask for personal information when we truly need it to provide a service to you. We collect it by fair and lawful means, with your knowledge and consent. We also let you know why we’re collecting it and how it will be used.
+**What data we process**
 
-- We only retain collected information for as long as necessary to provide you with your requested service. What data we store, we’ll protect within commercially acceptable means to prevent loss and theft, as well as unauthorised access, disclosure, copying, use or modification.
+- Account data: username, email address and password (stored only in hashed,
+  unreadable form).
+- Connection data: start and end of each session, amount of data transferred,
+  assigned IP address, MAC address of the device and access point used; login
+  attempts, successful or not.
+- Technical logs of the routers, which may contain the MAC and IP address of the
+  device.
 
-- We don’t share any personally identifying information publicly or with third-parties, except when required to by law.
+We do not record the content of communications or the websites you visit.
 
-- Our website may link to external sites that are not operated by us. Please be aware that we have no control over the content and practices of these sites, and cannot accept responsibility or liability for their respective privacy policies.
+**Why**
 
-- You are free to refuse our request for your personal information, with the understanding that we may be unable to provide you with some of your desired services.
+To provide the service (authentication and account management), for the security
+and proper operation of the network, and to answer requests from the authorities
+where required by law.
 
-- Your continued use of our website will be regarded as acceptance of our practices around privacy and personal information. If you have any questions about how we handle user data and personal information, feel free to contact us.
+**How long**
+
+- Connection data and login attempts: 365 days, then they are deleted
+  automatically.
+- Technical logs of the routers: up to 15 days.
+- Account data: as long as the account exists; you can ask for its deletion at
+  any time.
+
+**Who we share it with**
+
+The data stays on NINUX Basilicata's servers and is not sold or given to third
+parties, except where required by law.
+
+**Your rights**
+
+You can ask to access, correct or delete your data, and to restrict or object to
+its processing (articles 15-22 of EU Regulation 2016/679), by writing to the
+address above. You can also lodge a complaint with the Italian data protection
+authority ([garanteprivacy.it](https://www.garanteprivacy.it)).
