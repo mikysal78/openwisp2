@@ -585,6 +585,19 @@
       # SVG; lo serve la pagina wifi (owlp_organizations/basilicata/client_assets)
       - |
         OPENWISP_EMAIL_LOGO = "https://wifi.ninux-nnxx.it/assets/basilicata/ninux-logo-email.png"
+      # LuCI dei router da OpenWISP (openwisp-luci, Play 6): un host per device,
+      # <uuid>.luci.ninux-nnxx.it (DNS *.luci e certificato dedicato). Il
+      # proxy va solo verso la rete NINUX: l'IP di gestione lo dichiara il router.
+      - |
+        OPENWISP_LUCI_HOST = "{id}.luci.ninux-nnxx.it"
+        OPENWISP_LUCI_OPENWISP_URL = "https://openwisp.ninux-nnxx.it"
+        OPENWISP_LUCI_ALLOWED_NETWORKS = ["10.27.0.0/16"]
+        ALLOWED_HOSTS.append(".luci.ninux-nnxx.it")
+      # I router sono serviti su un sottodominio dello stesso dominio: con il
+      # prefisso __Host- un sottodominio non può impostare né sovrascrivere il
+      # cookie di sessione di OpenWISP (cambiandolo, tutti escono una volta)
+      - |
+        SESSION_COOKIE_NAME = "__Host-sessionid"
 
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
     # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
@@ -598,10 +611,19 @@
       # da /opt/router-logs, Play 5). Deve restare dopo controller e monitoring:
       # estende l'admin del device che registrano loro.
       - "openwisp_netconsole"
+      # Pulsante «LuCI» nella pagina del device (proxy nginx del Play 6): va
+      # dopo openwisp_netconsole, di cui estende l'admin del device.
+      - "openwisp_luci"
 
     openwisp2_extra_python_packages:
       - bpython
       - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.2"
+      - "{{ openwisp_luci_package }}"
+    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.1.0"
+
+    # Viste del proxy LuCI (login monouso, auth_request di nginx)
+    openwisp2_extra_urls:
+      - 'path("__openwisp_luci__/", include("openwisp_luci.urls"))'
 
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
@@ -1021,4 +1043,59 @@
 
     - name: restart openwisp2 router_logs
       ansible.builtin.command: supervisorctl restart openwisp2
+      changed_when: true
+
+# ============================================================================
+# Play 6 — Proxy LuCI dei router (openwisp-luci)
+# Il pulsante «LuCI» nella pagina del device apre https://<uuid>.luci.ninux-nnxx.it:
+# nginx chiede a OpenWISP (auth_request) se l'utente può e verso quale IP, poi
+# inoltra in HTTPS all'IP di gestione del router. Servono il DNS *.luci e il
+# certificato luci.ninux-nnxx.it (ansible-dns, acme_domains); sui router con la
+# gestione sulla wan, la regola Allow-LuCI-OpenWISP del template «Uplink LAN su wan».
+# ============================================================================
+- name: Proxy LuCI dei router (openwisp-luci)
+  hosts: openwisp2
+  become: "{{ become | default('yes') }}"
+  tags: luci_proxy
+  vars:
+    luci_proxy_domain: luci.ninux-nnxx.it
+    luci_proxy_ssl_cert: /etc/ssl/acme/luci.ninux-nnxx.it.fullchain.pem
+    luci_proxy_ssl_key: /etc/ssl/acme/luci.ninux-nnxx.it.key
+    luci_proxy_uwsgi_socket: "unix:///opt/openwisp2/uwsgi.sock"
+    luci_proxy_router_scheme: https
+    luci_proxy_max_body_size: 64m
+    luci_proxy_ipv6: true
+
+  tasks:
+    - name: Certificato del proxy LuCI
+      ansible.builtin.stat:
+        path: "{{ luci_proxy_ssl_cert }}"
+      register: _luci_cert
+
+    - name: Senza certificato il virtual host non si attiva
+      ansible.builtin.assert:
+        that: _luci_cert.stat.exists
+        fail_msg: >-
+          Manca {{ luci_proxy_ssl_cert }}: emettere il certificato
+          luci.ninux-nnxx.it (*.luci) con ansible-dns prima di questo play.
+
+    - name: Virtual host nginx di openwisp-luci
+      ansible.builtin.template:
+        src: templates/openwisp-luci.conf.j2
+        dest: /etc/nginx/sites-available/openwisp-luci
+        owner: root
+        group: root
+        mode: "0644"
+      notify: reload nginx luci
+
+    - name: Abilita il virtual host
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/openwisp-luci
+        dest: /etc/nginx/sites-enabled/openwisp-luci
+        state: link
+      notify: reload nginx luci
+
+  handlers:
+    - name: reload nginx luci
+      ansible.builtin.shell: nginx -t && systemctl reload nginx
       changed_when: true

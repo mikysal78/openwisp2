@@ -401,3 +401,29 @@ router, with a per-source rate limit. netconsole on the routers requires the
 NINUX firmware from build #34 onwards (`kmod-netconsole` in `base.config`,
 which also brings netpoll support into the kernel); before that, the template
 script writes in the router's syslog that the module was not loaded.
+
+## 7. Router LuCI from OpenWISP
+
+On every device page the **LuCI ↗** button opens the web interface of the
+router in a new tab, through the server: module
+[openwisp-luci](https://github.com/mikysal78/openwisp-luci) (Play 6). The
+router only needs to be reachable from the server, not from the browser; the
+LuCI login is still the router's own.
+
+- Address: `https://<device uuid without dashes>.luci.ninux-nnxx.it`, one host
+  per router (cookies and sessions of a router never reach the other ones).
+  It needs the `*.luci.ninux-nnxx.it` DNS record (`*.luci` alias of the
+  `openwisp` record in ansible-dns) and the `luci.ninux-nnxx.it` + `*.luci`
+  certificate (`acme_domains` in ansible-dns, deployed to 10.27.22.18): Play 6
+  stops if the certificate is missing.
+- Only users who can change the device see the button; the link is valid once
+  for 60 seconds, then a cookie for 4 hours. On every request nginx asks
+  OpenWISP (auth_request) whether the user is still allowed and which IP to use.
+- The proxy only goes to the management IP of the device and only within
+  10.27.0.0/16, over HTTPS (self-signed router certificate, not verified).
+- Routers managed on the wan (**Uplink LAN su wan** template): the
+  `Allow-LuCI-OpenWISP` rule opens port 443 to 10.27.22.18 only.
+- The OpenWISP session cookie is named `__Host-sessionid`: the `*.luci`
+  subdomains cannot overwrite it.
+- Every opening is in the OpenWISP log (`LuCI di <device> aperta da <user>`),
+  the requests in `/var/log/nginx/openwisp-luci.access.log`.
