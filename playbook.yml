@@ -593,6 +593,10 @@
         OPENWISP_LUCI_OPENWISP_URL = "https://openwisp.ninux-nnxx.it"
         OPENWISP_LUCI_ALLOWED_NETWORKS = ["10.27.0.0/16"]
         ALLOWED_HOSTS.append(".luci.ninux-nnxx.it")
+        # superuser direttamente dentro LuCI come admin (servizio NINUX), con
+        # una sessione creata via SSH; root e gli altri usano la password
+        OPENWISP_LUCI_AUTO_LOGIN = True
+        OPENWISP_LUCI_AUTO_LOGIN_USER = "admin"
       # I router sono serviti su un sottodominio dello stesso dominio: con il
       # prefisso __Host- un sottodominio non può impostare né sovrascrivere il
       # cookie di sessione di OpenWISP (cambiandolo, tutti escono una volta)
@@ -619,7 +623,7 @@
       - bpython
       - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.1.2"
       - "{{ openwisp_luci_package }}"
-    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.1.1"
+    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.2.0"
 
     # Viste del proxy LuCI (login monouso, auth_request di nginx)
     openwisp2_extra_urls:
