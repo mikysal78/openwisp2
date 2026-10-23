@@ -407,8 +407,7 @@ script writes in the router's syslog that the module was not loaded.
 On every device page the **LuCI ↗** button opens the web interface of the
 router in a new tab, through the server: module
 [openwisp-luci](https://github.com/mikysal78/openwisp-luci) (Play 6). The
-router only needs to be reachable from the server, not from the browser; the
-LuCI login is still the router's own.
+router only needs to be reachable from the server, not from the browser.
 
 - Address: `https://<device uuid without dashes>.luci.ninux-nnxx.it`, one host
   per router (cookies and sessions of a router never reach the other ones).
@@ -416,6 +415,13 @@ LuCI login is still the router's own.
   `openwisp` record in ansible-dns) and the `luci.ninux-nnxx.it` + `*.luci`
   certificate (`acme_domains` in ansible-dns, deployed to 10.27.22.18): Play 6
   stops if the certificate is missing.
+- **Automatic login** for superusers: OpenWISP enters the router with the SSH
+  connection used for commands (Credentials) and creates a LuCI session for
+  **admin** (NINUX service user), with the same permissions as an admin login,
+  expiring after 1 hour of inactivity; LuCI logout destroys it. No password on
+  the server and the session id never reaches the logs. Other users, and
+  anyone who wants to log in as root, use the router password on the LuCI
+  login page. If SSH fails, LuCI opens with its login page.
 - Only users who can change the device see the button; the link is valid once
   for 60 seconds, then a cookie for 4 hours. On every request nginx asks
   OpenWISP (auth_request) whether the user is still allowed and which IP to use.
