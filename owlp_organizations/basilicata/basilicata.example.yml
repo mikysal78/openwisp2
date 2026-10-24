@@ -160,16 +160,13 @@ client:
         links:
           - text:
               en: "Login with Facebook"
-            url: "#facebook"
+            url: "https://openwisp.ninux-nnxx.it/accounts/facebook/login/?next=%2Fradius%2Fsocial-login%2Fbasilicata%2F%3Fcp%3Dhttps%3A%2F%2Fwifi.ninux-nnxx.it%2Fbasilicata%2F%26last%3D"
             icon: "facebook.svg"
           - text:
               en: "Login with Google"
             icon: "google.svg"
-            url: "#google"
-          - text:
-              en: "Login with X"
-            icon: "twitter.svg"
-            url: "#twitter"
+            url: "https://openwisp.ninux-nnxx.it/accounts/google/login/?next=%2Fradius%2Fsocial-login%2Fbasilicata%2F%3Fcp%3Dhttps%3A%2F%2Fwifi.ninux-nnxx.it%2Fbasilicata%2F%26last%3D"
+          # X: da aggiungere se il piano gratuito delle API lo consente
       input_fields:
         username:
           type: "email"

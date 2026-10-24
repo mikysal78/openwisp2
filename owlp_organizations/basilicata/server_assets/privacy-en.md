@@ -8,6 +8,9 @@ to [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it).
 
 - Account data: username, email address and password (stored only in hashed,
   unreadable form).
+- If you sign in with Google or Facebook: first name, last name, email address
+  and the account identifier that the service sends us. We do not receive your
+  password or any other profile data, and we never post anything on your behalf.
 - Connection data: start and end of each session, amount of data transferred,
   assigned IP address, MAC address of the device and access point used; login
   attempts, successful or not.
@@ -41,3 +44,12 @@ You can ask to access, correct or delete your data, and to restrict or object to
 its processing (articles 15-22 of EU Regulation 2016/679), by writing to the
 address above. You can also lodge a complaint with the Italian data protection
 authority ([garanteprivacy.it](https://www.garanteprivacy.it)).
+
+**Data deletion**
+
+To delete your account and the related data, including the data received from
+Google or Facebook, write to [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it)
+from the email address of the account, stating your username. We delete the
+data within 30 days and confirm it by email. You can also remove the access of
+the "NINUX Basilicata WiFi" app from the settings of your Google or Facebook
+account.
