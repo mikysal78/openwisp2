@@ -8,6 +8,9 @@ scrivi a [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it).
 
 - Dati dell'account: nome utente, indirizzo email e password (conservata solo in
   forma cifrata, non leggibile).
+- Se accedi con Google o Facebook: nome, cognome, indirizzo email e
+  l'identificativo dell'account che quel servizio ci comunica. Non riceviamo la
+  tua password né altri dati del profilo, e non pubblichiamo nulla a tuo nome.
 - Dati delle connessioni: inizio e fine di ogni sessione, quantità di dati
   scambiati, indirizzo IP assegnato, indirizzo MAC del dispositivo e punto di
   accesso usato; i tentativi di accesso, riusciti o no.
@@ -41,3 +44,12 @@ Puoi chiedere di accedere ai tuoi dati, di correggerli o di cancellarli, e di
 limitarne o opporti al trattamento (artt. 15-22 del Regolamento UE 2016/679),
 scrivendo all'indirizzo sopra. Puoi anche presentare reclamo al Garante per la
 protezione dei dati personali ([garanteprivacy.it](https://www.garanteprivacy.it)).
+
+**Cancellazione dei dati**
+
+Per cancellare l'account e i dati collegati, compresi quelli ricevuti da Google
+o Facebook, scrivi a [admin@ninux-nnxx.it](mailto:admin@ninux-nnxx.it)
+dall'indirizzo email dell'account, indicando il nome utente. Cancelliamo i dati
+entro 30 giorni e te lo confermiamo per email. Puoi anche rimuovere l'accesso
+dell'app «NINUX Basilicata WiFi» dalle impostazioni del tuo account Google o
+Facebook.
