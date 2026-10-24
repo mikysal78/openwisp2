@@ -78,8 +78,8 @@ client:
           authenticated: true
           verified: true
       after_html:
-        en: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it<div class="sponsor">Supported by<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
-        it: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it<div class="sponsor">Con il sostegno di<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
+        en: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it'
+        it: '&copy; <a href="https://ninux-nnxx.it">NINUX Basilicata</a> &middot; ninux-nnxx.it'
 
     registration_form:
       auto_select_first_plan: false
@@ -143,6 +143,9 @@ client:
             en: "facebook"
           icon: "facebook.svg"
           url: "https://facebook.com/openwisp"
+      after_html:
+        en: '<div class="sponsor">Supported by<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
+        it: '<div class="sponsor">Con il sostegno di<br><a href="https://romaclubmatera.it" target="_blank" rel="noopener"><img src="/assets/basilicata/romaclubmatera-logo.png" alt="Roma Club Matera" height="80"></a></div>'
 
     status_page:
       links:

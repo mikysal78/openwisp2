@@ -196,6 +196,10 @@ div.error {
   margin-top: 12px;
   font-size: 0.85em;
 }
+/* sponsor nel riquadro contatti, sotto le icone social */
+.contact .sponsor {
+  margin-top: 24px;
+}
 .sponsor img {
   height: 80px;
   width: auto;
