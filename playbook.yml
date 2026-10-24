@@ -616,6 +616,12 @@
         # i pulsanti della pagina wifi sono link: senza questo allauth mostra
         # una pagina intermedia «Continua» prima di andare da Google/Facebook
         SOCIALACCOUNT_LOGIN_ON_GET = True
+        # chi si era già registrato con la stessa email entra nel suo account
+        # (solo email verificate da Google/Facebook). Se l'email dell'account
+        # locale non era verificata, allauth ne annulla la password: chi
+        # l'avesse registrata al posto del proprietario resta fuori.
+        SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+        SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
         SOCIALACCOUNT_PROVIDERS = {
             "google": {
                 "SCOPE": ["profile", "email"],
