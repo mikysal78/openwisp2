@@ -158,8 +158,10 @@ client:
     login_form:
       social_login:
         links:
-          # Facebook: app ancora in sviluppo (serve la revisione di Meta e la
-          # verifica dell'azienda); il provider resta configurato in OpenWISP
+          - text:
+              en: "Login with Facebook"
+            url: "https://openwisp.ninux-nnxx.it/accounts/facebook/login/?next=%2Fradius%2Fsocial-login%2Fbasilicata%2F%3Fcp%3Dhttps%3A%2F%2Fwifi.ninux-nnxx.it%2Fbasilicata%2Flogin%2F%26last%3D"
+            icon: "facebook.svg"
           - text:
               en: "Login with Google"
             icon: "google.svg"
