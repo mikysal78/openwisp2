@@ -651,7 +651,7 @@
       - bpython
       - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.2.1"
       - "{{ openwisp_luci_package }}"
-    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.3.0"
+    openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.3.1"
 
     # Viste del proxy LuCI (login monouso, auth_request di nginx) e API con il
     # token per l'app openwisp-android (link LuCI, ultime righe netconsole)
