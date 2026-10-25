@@ -110,10 +110,7 @@
                 "oauth2.googleapis.com",
                 "gstatic.com",
                 "googleusercontent.com",
-                "fonts.googleapis.com",
-                "facebook.com",
-                "facebook.net",
-                "fbcdn.net"
+                "fonts.googleapis.com"
             ]
         },
         {
