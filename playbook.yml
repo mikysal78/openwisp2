@@ -607,17 +607,17 @@
       # cookie di sessione di OpenWISP (cambiandolo, tutti escono una volta)
       - |
         SESSION_COOKIE_NAME = "__Host-sessionid"
-      # Registrazione e login con Google e Facebook dalla pagina wifi.
+      # Registrazione e login con Google dalla pagina wifi.
       # Client ID e secret NON stanno qui: si inseriscono nell'admin
       # (Social applications), legati al Site openwisp.ninux-nnxx.it.
       # Ritorno: https://openwisp.ninux-nnxx.it/accounts/<provider>/login/callback/
       - |
         OPENWISP_RADIUS_SOCIAL_REGISTRATION_ENABLED = True
         # i pulsanti della pagina wifi sono link: senza questo allauth mostra
-        # una pagina intermedia «Continua» prima di andare da Google/Facebook
+        # una pagina intermedia «Continua» prima di andare da Google
         SOCIALACCOUNT_LOGIN_ON_GET = True
         # chi si era già registrato con la stessa email entra nel suo account
-        # (solo email verificate da Google/Facebook). Se l'email dell'account
+        # (solo email verificate da Google). Se l'email dell'account
         # locale non era verificata, allauth ne annulla la password: chi
         # l'avesse registrata al posto del proprietario resta fuori.
         SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
@@ -626,13 +626,6 @@
             "google": {
                 "SCOPE": ["profile", "email"],
                 "AUTH_PARAMS": {"access_type": "online"},
-            },
-            "facebook": {
-                "METHOD": "oauth2",
-                "SCOPE": ["email", "public_profile"],
-                "AUTH_PARAMS": {"auth_type": "reauthenticate"},
-                "FIELDS": ["id", "email", "name", "first_name", "last_name"],
-                "VERIFIED_EMAIL": True,
             },
         }
 
@@ -653,7 +646,6 @@
       - "openwisp_luci"
       # Login social della pagina wifi (SOCIALACCOUNT_PROVIDERS sopra)
       - "allauth.socialaccount.providers.google"
-      - "allauth.socialaccount.providers.facebook"
 
     openwisp2_extra_python_packages:
       - bpython
