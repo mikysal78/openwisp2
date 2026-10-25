@@ -2,7 +2,7 @@
 
 # OpenWISP2 full + ZeroTier + WiFi Login Pages
 
-> 📖 Questo repository fa parte dell'infrastruttura di **NINUX Basilicata**: la guida per ricostruirla tutta, passo passo (Proxmox, DNS, OpenWISP, moduli, firmware, app), è su **[docs.ninux-nnxx.it](https://docs.ninux-nnxx.it)**.
+> 📖 Questo repository fa parte dell'infrastruttura di **NINUX Basilicata**: la guida per ricostruirla tutta, passo passo (Proxmox, DNS, OpenWISP, moduli, firmware, app), è su **[la guida su GitHub Pages](https://mikysal78.github.io/ninux-basilicata-infra/)**.
 
 Playbook Ansible che installa su un CT (Debian 13 / Ubuntu 22.04+):
 
