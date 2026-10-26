@@ -148,6 +148,12 @@
         block: |
           OPENWISP_CONTROLLER_CONTEXT = {{ openwisp2_context | to_nice_json }}
       notify: restart openwisp2
+
+    # Patch di sicurezza locali non versionate (vedi .gitignore): si applicano
+    # solo se il file esiste nella copia locale del repo.
+    - name: Patch di sicurezza locali
+      ansible.builtin.include_tasks: local-security-patches.yml
+      when: lookup('ansible.builtin.fileglob', playbook_dir + '/local-security-patches.yml') | length > 0
       tags: [context]
 
     # Template "Hotspot uspot 2.4GHz": copia del certificato *.ninux-nnxx.it

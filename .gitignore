@@ -17,3 +17,6 @@ __pycache__/
 
 # Config org wifi-login-pages con token RADIUS reale (usare basilicata.example.yml)
 owlp_organizations/basilicata/basilicata.yml
+
+# patch di sicurezza in attesa di divulgazione coordinata
+local-security-patches.yml
