@@ -165,18 +165,10 @@ client:
           # X: da aggiungere se il piano gratuito delle API lo consente
       input_fields:
         username:
-          # email (account registrati, Google) o nome utente (voucher di openwisp-voucher)
+          # email, numero di telefono o nome utente (voucher di openwisp-voucher):
+          # l'etichetta predefinita di wifi-login-pages li elenca tutti e tre
           type: "text"
           pattern: '[a-zA-Z@.+\-_\d]{1,150}'
-          label:
-            en: "Email or username"
-            it: "Email o nome utente"
-          placeholder:
-            en: "email or username"
-            it: "email o nome utente"
-          pattern_description:
-            en: "letters, digits and @ . + - _"
-            it: "lettere, cifre e @ . + - _"
         password:
           pattern: ".{6,}"
         remember_me:
