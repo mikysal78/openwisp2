@@ -21,7 +21,7 @@
             "wireless": {
                 "radio": "{{ hotspot_radio }}",
                 "mode": "access_point",
-                "ssid": "NINUX Free WiFi",
+                "ssid": "{{ hotspot_ssid }}",
                 "isolate": true,
                 "network": [
                     "captive"

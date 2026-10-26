@@ -64,6 +64,7 @@ t.save()
 | `wifi_ssid`, `wifi_password` | `default_values` dei template AP (`ninux.org` / `CHANGEME`) | sovrascrivibili per device; nel repo la password è un segnaposto: quella reale si imposta nel template su OpenWISP o nelle variabili del device |
 | `wifi_encryption`, `wifi_pmf` | `default_values` dei template AP (`wpa2_personal_mixed` / `1`) | cifratura e PMF del SSID principale, sovrascrivibili per device (es. `wpa3_personal` + `2` per WPA3 puro) |
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
+| `hotspot_ssid`, `hotspot_radio` | `default_values` del template hotspot uspot (`NINUX Free WiFi` / `radio0`) | nome della rete del captive portal e radio a 2.4 GHz, sovrascrivibili per device |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
 | `name`, `mac_address` | OpenWISP | si risolvono per-device (NAS-Identifier / Called-Station) |
 
@@ -139,7 +140,11 @@ Due alternative — **applicane una sola per device** (stessa subnet
 
 Cosa adattare:
 
-- **SSID** (`NINUX Free WiFi`) a piacere
+- **SSID** (uspot): variabile `hotspot_ssid`, default `NINUX Free WiFi` nelle
+  Configuration variables del template. Il template è legato all'organizzazione
+  (anche `uam_server` punta a `/basilicata/`): la copia per un'altra
+  organizzazione ha il suo default; per un singolo router si cambia nelle
+  variabili del device. Sul chilli resta fisso
 - **radio** (uspot): variabile `hotspot_radio`, default `radio0` (2.4GHz sulla
   quasi totalità dei device OpenWrt). Dove la 2.4GHz è un'altra radio va messa
   nelle variabili del device: sul WRT3200ACM `radio0` è la 5GHz, quindi
