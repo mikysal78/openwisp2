@@ -165,8 +165,18 @@ client:
           # X: da aggiungere se il piano gratuito delle API lo consente
       input_fields:
         username:
-          type: "email"
-          pattern: '.+@.+\..+'
+          # email (account registrati, Google) o nome utente (voucher di openwisp-voucher)
+          type: "text"
+          pattern: '[a-zA-Z@.+\-_\d]{1,150}'
+          label:
+            en: "Email or username"
+            it: "Email o nome utente"
+          placeholder:
+            en: "email or username"
+            it: "email o nome utente"
+          pattern_description:
+            en: "letters, digits and @ . + - _"
+            it: "lettere, cifre e @ . + - _"
         password:
           pattern: ".{6,}"
         remember_me:
