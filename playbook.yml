@@ -637,7 +637,7 @@
         }
 
     # Subnet Division: assegna automaticamente un IP dall'IPAM a ogni device
-    # (è l'"autoip" nativo di OpenWISP, usato dal template mesh)
+    # (il template mesh la usa per gli indirizzi della rete mesh)
     # Integrazione topology <-> device: lega i nodi delle topology ai device
     # (ZeroTier via member id, NetJSON/Babel via id "<MAC>@babel") e, al cambio
     # di stato di un link, fa ripartire i check del monitoring.
