@@ -666,6 +666,23 @@
       - 'path("api/v1/", include("openwisp_luci.api_urls"))'
       - 'path("api/v1/", include("openwisp_netconsole.api_urls"))'
 
+    # Tema LuCI dei router (repo luci-theme-ninux, template OpenWISP
+    # openwisp-templates/luci-theme-ninux.json): logo e colori dell'header di
+    # LuCI, passati ai router tramite il context globale qui sotto (tag context).
+    # Il logo è un URL visto dal BROWSER: un percorso sul router (quello del
+    # tema), un URL https o un data: URI. Colori solo #rgb o #rrggbb; vuoto =
+    # arancione Ninux del tema. Per singolo router si sovrascrivono nelle
+    # variabili del device (luci_logo, luci_brand, luci_accent, luci_accent_dark).
+    # Esempio con il logo OpenWISP (servito dal controller):
+    #   ninux_luci_logo: "https://openwisp.ninux-nnxx.it/static/ui/openwisp/images/openwisp-logo-black.svg"
+    #   ninux_luci_brand: "OpenWISP"
+    #   ninux_luci_accent: "#0b5394"        # un blu a scelta
+    #   ninux_luci_accent_dark: "#6fa8dc"
+    ninux_luci_logo: "/luci-static/ninux/logo.svg"
+    ninux_luci_brand: "ninux"
+    ninux_luci_accent: ""
+    ninux_luci_accent_dark: ""
+
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
     # variabile non è ancora risolta; per ogni device la regola assegna l'IP vero
@@ -683,6 +700,11 @@
       # Shared secret RADIUS degli hotspot: sta in secrets.yml, cosi' i template
       # hotspot nel repo non contengono il segreto in chiaro.
       radius_secret: "{{ vault_radius_secret }}"
+      # Tema LuCI ninux (vedi ninux_luci_* sopra)
+      luci_logo: "{{ ninux_luci_logo }}"
+      luci_brand: "{{ ninux_luci_brand }}"
+      luci_accent: "{{ ninux_luci_accent }}"
+      luci_accent_dark: "{{ ninux_luci_accent_dark }}"
 
     # ------------------------------------------------------------------
     # SSL — certificato gestito MANUALMENTE (già presente sul CT).

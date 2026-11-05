@@ -19,6 +19,7 @@ template dentro OpenWISP.
 | `netconsole.json` | Netconsole — messaggi del kernel in tempo reale al server (`/opt/router-logs/netconsole-<nome del device>/`, scheda «Netconsole» in OpenWISP), anche prima di un blocco. Serve il firmware dalla build #34; il nome del device (userdata `ninux_node`) dalla #37, prima la cartella è per IP. **Non** su ReginaMargherita116 (ha il suo nel template del router di confine) | no | no |
 | `usteer.json` | usteer — coordina gli AP con le stesse reti e sposta i client sull'AP migliore (802.11k/v, disconnessione sotto -85 dBm per gli IoT). Firmware dalla build #36. Solo sui router con più AP sulla stessa LAN (i due Zyxel); con `ap-dualssid.json`, che attiva `ieee80211k` e `bss_transition` | no | no |
 | `uplink-lan-wan.json` | Uplink LAN su wan — router collegati alla LAN di ReginaMargherita116 dalla porta `wan` (WRT3200ACM, C2600, X5000R): regole firewall per Babel (UDP 6696 da `fe80::/10`) e SSH da `10.27.22.0/24` sulla zona `wan`, `management_interface` `wan`, variabile `babel_wired_extra` = `wan` (prevale sul default di Bird2 perché il template viene dopo). **Non** sui siti remoti, dove la `wan` è il modem del provider | no | no |
+| `luci-theme-ninux.json` | Tema LuCI ninux — logo, nome e colori dell'header di LuCI e modalità iniziale Base/Avanzato (sezione `luci.ninux`). Serve il pacchetto `luci-theme-ninux` nel firmware (repo `luci-theme-ninux`) | no | no |
 | `router-confine.json` | Router di confine (ReginaMargherita116) — config **completa** del router x86 di confine (WAN, /29, Serveperso, firewall, anti-spoofing…), per ricostruirlo su hardware nuovo. Credenziali = variabili del device `confine_*`. Solo ciò che i template di default non danno | no | no |
 
 Il template **Nomi dei nodi (hosts)** (default, non richiesto) non sta qui: lo
@@ -65,6 +66,8 @@ t.save()
 | `wifi_encryption`, `wifi_pmf` | `default_values` dei template AP (`wpa2_personal_mixed` / `1`) | cifratura e PMF del SSID principale, sovrascrivibili per device (es. `wpa3_personal` + `2` per WPA3 puro) |
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
 | `hotspot_ssid`, `hotspot_radio` | `default_values` del template hotspot uspot (`NINUX Free WiFi` / `radio0`) | nome della rete del captive portal e radio a 2.4 GHz, sovrascrivibili per device |
+| `luci_logo`, `luci_brand`, `luci_accent`, `luci_accent_dark` | `OPENWISP_CONTROLLER_CONTEXT` (variabili `ninux_luci_*` del playbook, tag `context`) | logo (URL visto dal browser), testo alternativo e colori `#rrggbb` del tema LuCI; vuoto = default del tema (logo e arancione Ninux). Per singolo router si sovrascrivono nelle variabili del device |
+| `luci_mode` | `default_values` del template tema LuCI (`basic`) | modalità iniziale dell'interfaccia, `basic` o `advanced` |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
 | `name`, `mac_address` | OpenWISP | si risolvono per-device (NAS-Identifier / Called-Station) |
 
