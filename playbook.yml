@@ -148,6 +148,7 @@
         block: |
           OPENWISP_CONTROLLER_CONTEXT = {{ openwisp2_context | to_nice_json }}
       notify: restart openwisp2
+      tags: [context]
 
     # Patch di sicurezza locali non versionate (vedi .gitignore): si applicano
     # solo se il file esiste nella copia locale del repo.
