@@ -651,6 +651,10 @@
       # Pulsante «LuCI» nella pagina del device (proxy nginx del Play 6): va
       # dopo openwisp_netconsole, di cui estende l'admin del device.
       - "openwisp_luci"
+      # Riquadro «Tema LuCI dei router» nella pagina dell'organizzazione (logo,
+      # nome, colori e modalità del tema per organizzazione): va dopo
+      # openwisp_users e openwisp_controller.config, di cui estende l'admin.
+      - "openwisp_luci_theme"
       # Login social della pagina wifi (SOCIALACCOUNT_PROVIDERS sopra)
       - "allauth.socialaccount.providers.google"
 
@@ -658,6 +662,7 @@
       - bpython
       - "openwisp-netconsole @ git+https://github.com/mikysal78/openwisp-netconsole@v0.2.1"
       - "{{ openwisp_luci_package }}"
+      - "openwisp-luci-theme @ git+https://github.com/mikysal78/openwisp-luci-theme@v0.1.0"
     openwisp_luci_package: "openwisp-luci @ git+https://github.com/mikysal78/openwisp-luci@v0.3.1"
 
     # Viste del proxy LuCI (login monouso, auth_request di nginx) e API con il
@@ -670,6 +675,9 @@
     # Tema LuCI dei router (repo luci-theme-ninux, template OpenWISP
     # openwisp-templates/luci-theme-ninux.json): logo e colori dell'header di
     # LuCI, passati ai router tramite il context globale qui sotto (tag context).
+    # Sono i valori per tutti: ogni organizzazione li cambia (anche caricando il
+    # logo) nel riquadro «Tema LuCI dei router» della sua pagina (modulo
+    # openwisp-luci-theme), il singolo device nelle sue variabili.
     # Il logo è un URL visto dal BROWSER: un percorso sul router (quello del
     # tema), un URL https o un data: URI. Colori solo #rgb o #rrggbb; vuoto =
     # arancione Ninux del tema. Per singolo router si sovrascrivono nelle
@@ -683,6 +691,9 @@
     ninux_luci_brand: "ninux"
     ninux_luci_accent: ""
     ninux_luci_accent_dark: ""
+    # modalita' iniziale (basic o advanced) e interruttore Base/Avanzato (1 o 0)
+    ninux_luci_mode: "basic"
+    ninux_luci_allow_advanced: "1"
 
     # Context globale: valore di ripiego per le variabili generate dalla regola
     # di subnet division "mesh". Serve solo a far validare il template quando la
@@ -706,6 +717,8 @@
       luci_brand: "{{ ninux_luci_brand }}"
       luci_accent: "{{ ninux_luci_accent }}"
       luci_accent_dark: "{{ ninux_luci_accent_dark }}"
+      luci_mode: "{{ ninux_luci_mode }}"
+      luci_allow_advanced: "{{ ninux_luci_allow_advanced }}"
 
     # ------------------------------------------------------------------
     # SSL — certificato gestito MANUALMENTE (già presente sul CT).

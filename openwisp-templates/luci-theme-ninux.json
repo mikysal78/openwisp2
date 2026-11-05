@@ -1,5 +1,5 @@
 {
-  "_comment": "Template OpenWISP2: tema LuCI ninux (pacchetto luci-theme-ninux, repo luci-theme-ninux). Scrive la sezione luci.ninux sui router: logo, nome alternativo e colori dell'header vengono dal contesto globale del playbook (variabili ninux_luci_*, tag context), quindi si cambiano per tutti dal playbook o per singolo device nelle sue variabili. Vuoto = valore predefinito del tema (logo e arancione Ninux). luci_mode e' la modalita' iniziale dell'interfaccia (basic o advanced): ognuno puo' poi cambiarla dall'interruttore Base/Avanzato. Il tema deve essere nel firmware: il template non installa pacchetti. Backend=OpenWRT, Type=Generic.",
+  "_comment": "Template OpenWISP2: tema LuCI ninux (pacchetto luci-theme-ninux, repo luci-theme-ninux). Scrive la sezione luci.ninux sui router: logo, nome, colori, modalita' iniziale (luci_mode: basic o advanced) e interruttore Base/Avanzato (luci_allow_advanced: 1 o 0). I valori per tutti vengono dal contesto globale del playbook (variabili ninux_luci_*, tag context); per organizzazione si impostano nel riquadro «LuCI theme» della pagina dell'organizzazione (modulo openwisp-luci-theme, anche con l'upload del logo); per singolo device nelle sue variabili, che vincono su tutto. Vuoto = valore predefinito del tema. Nessun default value: verrebbe copiato nelle variabili di ogni device e vincerebbe sull'impostazione dell'organizzazione. Il tema deve essere nel firmware: il template non installa pacchetti. Backend=OpenWRT, Type=Generic.",
   "backend": "netjsonconfig.OpenWrt",
   "config": {
     "luci": [
@@ -11,11 +11,8 @@
         "accent": "{{ luci_accent }}",
         "accent_dark": "{{ luci_accent_dark }}",
         "default_mode": "{{ luci_mode }}",
-        "allow_advanced": "1"
+        "allow_advanced": "{{ luci_allow_advanced }}"
       }
     ]
-  },
-  "default_values": {
-    "luci_mode": "basic"
   }
 }

@@ -67,7 +67,8 @@ t.save()
 | `wifi_ssid2`, `wifi_password2` | `default_values` del template dual SSID (`NINUX 2` / `CHANGEME`) | secondo SSID, anch'esso sulla `lan` |
 | `hotspot_ssid`, `hotspot_radio` | `default_values` del template hotspot uspot (`NINUX Free WiFi` / `radio0`) | nome della rete del captive portal e radio a 2.4 GHz, sovrascrivibili per device |
 | `luci_logo`, `luci_brand`, `luci_accent`, `luci_accent_dark` | `OPENWISP_CONTROLLER_CONTEXT` (variabili `ninux_luci_*` del playbook, tag `context`) | logo (URL visto dal browser), testo alternativo e colori `#rrggbb` del tema LuCI; vuoto = default del tema (logo e arancione Ninux). Per singolo router si sovrascrivono nelle variabili del device |
-| `luci_mode` | `default_values` del template tema LuCI (`basic`) | modalità iniziale dell'interfaccia, `basic` o `advanced` |
+| `luci_mode`, `luci_allow_advanced` | `OPENWISP_CONTROLLER_CONTEXT` (`ninux_luci_mode`, `ninux_luci_allow_advanced` del playbook: `basic`, `1`) | modalità iniziale (`basic` o `advanced`) e interruttore Base/Avanzato (`1` o `0`). **Non** sono default values del template: verrebbero copiati nelle variabili di ogni device e vincerebbero sull'impostazione dell'organizzazione |
+| tutte le `luci_*` per organizzazione | riquadro «LuCI theme» nella pagina dell'organizzazione (modulo [openwisp-luci-theme](https://github.com/mikysal78/openwisp-luci-theme)) | logo caricato (arriva al router come `data:` URI), nome, colori e modalità; un campo vuoto lascia il valore globale. Ordine: globale → organizzazione → riquadro del tema → variabili del device |
 | `radius_secret` | `OPENWISP_CONTROLLER_CONTEXT` (da `secrets.yml`) | shared secret RADIUS degli hotspot: **non** è in chiaro nel repo |
 | `name`, `mac_address` | OpenWISP | si risolvono per-device (NAS-Identifier / Called-Station) |
 
