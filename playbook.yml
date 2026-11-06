@@ -178,6 +178,26 @@
           < {{ openwisp2_path }}/sync_uspot_cert.py > /dev/null 2>&1
       tags: [uspot_cert]
 
+    # DDNS della zona dyn.ninux-nnxx.it fatto da qui invece che dai router
+    # (vedi files/sync_ddns.py): <device>.dyn.ninux-nnxx.it -> IPv4 di br-lan
+    # dal dato di monitoring. Nel syslog (tag ninux-ddns) solo cambi ed errori.
+    - name: Script del DDNS dei router
+      ansible.builtin.copy:
+        src: files/sync_ddns.py
+        dest: "{{ openwisp2_path }}/sync_ddns.py"
+        mode: "0644"
+      tags: [ddns]
+
+    - name: Cron del DDNS dei router (ogni 5 minuti)
+      ansible.builtin.cron:
+        name: "sync DDNS router (dyn.ninux-nnxx.it)"
+        minute: "*/5"
+        job: >-
+          NINUX_DDNS_APPLY=1 {{ openwisp2_path }}/env/bin/python {{ openwisp2_path }}/manage.py shell
+          < {{ openwisp2_path }}/sync_ddns.py 2>&1 | grep -E 'CAMBIA|ERRORE|Error|Traceback'
+          | logger -t ninux-ddns
+      tags: [ddns]
+
     # freeradius (rlm_rest) e le WiFi Login Pages chiamano l'API OpenWISP via i
     # domini pubblici. Se questi risolvono all'IP pubblico, la sorgente delle
     # richieste risulta l'IP pubblico (es. l'IPv6 ::18) e la difesa
