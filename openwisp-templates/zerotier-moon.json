@@ -1,5 +1,5 @@
 {
-  "_comment": "Template OpenWISP2: fa orbitare ogni router sul ZeroTier MOON dell'hub NINUX (10.27.22.18 / 194.28.98.61:9993). Il moon e' un root ZeroTier privato: i peer che NON riescono ad andare in P2P diretto fanno relay attraverso l'hub locale (~1-100ms secondo il sito) invece che sui PLANET pubblici di ZeroTier (oltreoceano, ~250ms). NON e' un gateway: nessuna default route, nessun NAT. Backend=OpenWRT, Type=Generic. NON 'enabled by default': va assegnato solo ai router che hanno anche 'VPN ZeroTier (client)' (gli AP senza ZeroTier non lo usano).",
+  "_comment": "Template OpenWISP2: fa orbitare ogni router sul ZeroTier MOON dell'hub NINUX (10.27.22.18 / 194.28.98.61:9993). Il moon e' un root ZeroTier privato: i peer che NON riescono ad andare in P2P diretto fanno relay attraverso l'hub locale (~1-100ms secondo il sito) invece che sui PLANET pubblici di ZeroTier (oltreoceano, ~250ms). NON e' un gateway: nessuna default route, nessun NAT. Backend=OpenWRT, Type=Generic. 'Enabled by default' come 'VPN ZeroTier (client)' (i nuovi router di solito sono esterni) ma NON required: sui router in LAN senza ZeroTier si toglie.",
   "backend": "netjsonconfig.backends.openwrt.OpenWrt",
   "config": {
     "files": [
