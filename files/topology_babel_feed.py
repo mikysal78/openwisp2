@@ -29,7 +29,9 @@ SERVER_ID = 'openwisp@babel'
 # VPN restano nodi isolati.
 VPN_IFACES = ('owzt*', 'zt*')
 INCLUDE_VPN = True
-BIRDC = 'birdc show status; birdc show babel interfaces; birdc show babel neighbors'
+# birdcl e non birdc: stessi comandi e stesso output, ma senza readline e
+# ncurses (bird3c tolto dal firmware per spazio, novembre 2026).
+BIRDC = 'birdcl show status; birdcl show babel interfaces; birdcl show babel neighbors'
 SSH = [
     'ssh', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5',
     '-o', 'StrictHostKeyChecking=accept-new',

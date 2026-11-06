@@ -284,7 +284,7 @@
 
     # Topology "Babel NINUX" (parser NetJsonParser, strategy receive): netdiff
     # non ha un parser Babel/BIRD e Babel non dà la topologia intera da un solo
-    # nodo, quindi lo script legge 'birdc show babel ...' sul server e via SSH
+    # nodo, quindi lo script legge 'birdcl show babel ...' sul server e via SSH
     # su ogni router e unisce le tabelle dei vicini in un NetworkGraph.
     # L'oggetto Topology si crea in admin (label "Babel NINUX").
     - name: Script feed topology Babel

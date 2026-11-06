@@ -261,10 +261,10 @@ repo must be updated if interfaces or templates change here.
 On the server (`ssh -p 2400 root@10.27.22.18`) or on a router:
 
 ```bash
-birdc show babel interfaces     # Babel interfaces, rxcost, number of neighbours
-birdc show babel neighbors      # neighbours (fe80::), metric, interface
-birdc show route protocol ninux # routes learned via Babel
-birdc show route for 10.27.1.0/24 all   # which way a LAN is reached
+birdcl show babel interfaces     # Babel interfaces, rxcost, number of neighbours
+birdcl show babel neighbors      # neighbours (fe80::), metric, interface
+birdcl show route protocol ninux # routes learned via Babel
+birdcl show route for 10.27.1.0/24 all   # which way a LAN is reached
 ```
 
 A neighbour listed in `show babel neighbors` with a stable metric is a working
@@ -285,7 +285,7 @@ solution stays this script, documented here for anyone using BIRD/Babel.
 The script `files/topology_babel_feed.py` (cron every 5 minutes, tag
 `topology`):
 
-1. runs `birdc show status; birdc show babel interfaces; birdc show babel
+1. runs `birdcl show status; birdcl show babel interfaces; birdcl show babel
    neighbors` on the server and, over SSH with the server's root key, on every
    device at its management IP (in parallel, 30 s timeout);
 2. merges the neighbour tables into a **NetJSON NetworkGraph**;

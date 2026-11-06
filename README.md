@@ -259,10 +259,10 @@ vanno aggiornati se qui cambiano interfacce o template.
 Sul server (`ssh -p 2400 root@10.27.22.18`) o su un router:
 
 ```bash
-birdc show babel interfaces     # interfacce Babel, rxcost, numero di vicini
-birdc show babel neighbors      # vicini (fe80::), metrica, interfaccia
-birdc show route protocol ninux # rotte imparate via Babel
-birdc show route for 10.27.1.0/24 all   # da dove passa una LAN
+birdcl show babel interfaces     # interfacce Babel, rxcost, numero di vicini
+birdcl show babel neighbors      # vicini (fe80::), metrica, interfaccia
+birdcl show route protocol ninux # rotte imparate via Babel
+birdcl show route for 10.27.1.0/24 all   # da dove passa una LAN
 ```
 
 Un vicino che compare in `show babel neighbors` con metrica stabile è un link
@@ -280,7 +280,7 @@ soluzione resta questo script, documentato qui per chi usa BIRD/Babel.
 
 Lo script `files/topology_babel_feed.py` (cron ogni 5 minuti, tag `topology`):
 
-1. esegue `birdc show status; birdc show babel interfaces; birdc show babel
+1. esegue `birdcl show status; birdcl show babel interfaces; birdcl show babel
    neighbors` sul server e, via SSH con la chiave root del server, su ogni
    device all'IP di gestione (in parallelo, timeout 30 s);
 2. unisce le tabelle dei vicini in un **NetJSON NetworkGraph**;
