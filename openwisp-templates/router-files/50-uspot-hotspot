@@ -1,0 +1,51 @@
+#!/bin/sh
+# Gestito da OpenWISP (template "Hotspot uspot 2.4GHz"):
+# /etc/hotplug.d/iface/50-uspot-hotspot
+#
+# Alla prima attivazione dell'hotspot (X5000R, 07/11/2026) due cose non
+# partono da sole:
+#  - l'SSID dell'hotspot aggiunto a caldo sulla radio gia' accesa (mt7915)
+#    resta DOWN senza canale: serve "wifi up <radio>";
+#  - uspotfilter e' abilitato ma non gira (al boot la rete captive non
+#    esisteva): uspot logga "no client list from uspotfilter!".
+# Allo ifup di captive si aspetta che la WiFi si assesti e si sistema solo
+# quello che non va. La radio si riavvia al massimo una volta ogni 10 minuti,
+# cosi' un SSID che non sale per altri motivi non manda in loop il WiFi.
+
+[ "$ACTION" = "ifup" ] && [ "$INTERFACE" = "captive" ] || exit 0
+
+IFACE=wifi_hotspot24
+STAMP=/tmp/uspot-hotspot-radio-restart
+PIDFILE=/var/run/uspot-hotspot-check.pid
+
+[ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null && exit 0
+
+(
+	log() { logger -t uspot-hotspot "$*"; }
+	sleep 30
+
+	radio=$(uci -q get wireless.wifi_$IFACE.device)
+	if [ -n "$radio" ] && [ "$(uci -q get wireless.$radio.disabled)" != "1" ] &&
+	   [ "$(uci -q get wireless.wifi_$IFACE.disabled)" != "1" ] &&
+	   [ "$(cat /sys/class/net/$IFACE/operstate 2>/dev/null)" != "up" ]; then
+		now=$(date +%s); last=$(cat "$STAMP" 2>/dev/null || echo 0)
+		if [ $((now - last)) -ge 600 ]; then
+			echo "$now" > "$STAMP"
+			log "$IFACE non e' up: riavvio $radio"
+			wifi up "$radio"
+			sleep 20
+		else
+			log "$IFACE non e' up, $radio gia' riavviata da poco: salto"
+		fi
+	fi
+
+	for svc in uspotfilter uspot; do
+		[ -x /etc/init.d/$svc ] && /etc/init.d/$svc enabled || continue
+		pgrep -f "/usr/share/$svc/$svc.uc" >/dev/null && continue
+		log "$svc non gira: lo avvio"
+		/etc/init.d/$svc start
+	done
+
+	rm -f "$PIDFILE"
+) </dev/null >/dev/null 2>&1 &
+echo $! > "$PIDFILE"
