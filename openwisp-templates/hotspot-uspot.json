@@ -22,6 +22,9 @@
                 "radio": "{{ hotspot_radio }}",
                 "mode": "access_point",
                 "ssid": "{{ hotspot_ssid }}",
+                "encryption": {
+                    "protocol": "none"
+                },
                 "isolate": true,
                 "network": [
                     "captive"
